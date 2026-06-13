@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import {
   Clock,
   AlertCircle,
@@ -10,8 +11,11 @@ import {
   Users,
   Trophy,
   Info,
+  Filter,
+  Sparkles,
 } from "lucide-react";
 import { useNotices } from "@/lib/notices-context";
+import { useUser } from "@/lib/user-context";
 import type { Notice, NoticeCategory, Urgency } from "@/lib/data";
 
 const categoryConfig: Record<
@@ -57,36 +61,61 @@ const urgencyConfig: Record<Urgency, { dot: string; label: string }> = {
   low: { dot: "bg-gray-400", label: "" },
 };
 
-function NoticeCard({ notice, index }: { notice: Notice; index: number }) {
+const filterOptions: (NoticeCategory | "All")[] = [
+  "All",
+  "Academics",
+  "Placement",
+  "Hostel Admin",
+  "Club Event",
+  "Sports",
+  "General",
+];
+
+function NoticeCard({ notice }: { notice: Notice }) {
   const cat = categoryConfig[notice.category];
   const urg = urgencyConfig[notice.urgency];
   const Icon = cat.icon;
+  const { user } = useUser();
+
+  // Show "Your Branch" badge for students viewing academic notices
+  const showBranchBadge =
+    user.role === "STUDENT" && notice.category === "Academics";
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.05, ease: "easeOut" }}
-      className="group relative rounded-xl border border-border bg-card p-4 hover:border-accent/30 transition-all hover:shadow-lg hover:shadow-accent/5"
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      className="group relative rounded-xl border border-border bg-card p-4 card-glow"
     >
       {/* Urgency indicator */}
       {(notice.urgency === "critical" || notice.urgency === "high") && (
-        <div className="absolute top-4 right-4 flex items-center gap-1.5">
+        <div className="absolute top-3.5 right-3.5 flex items-center gap-1.5">
           <span className={`w-2 h-2 rounded-full ${urg.dot}`} />
           {urg.label && (
-            <span className="text-[10px] font-medium text-destructive uppercase tracking-wider">
+            <span className="text-[10px] font-semibold text-destructive uppercase tracking-wider">
               {urg.label}
             </span>
           )}
         </div>
       )}
 
-      {/* Category badge */}
-      <div
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium ${cat.bg} ${cat.color} mb-3`}
-      >
-        <Icon className="w-3 h-3" />
-        {notice.category}
+      {/* Category + Branch badges */}
+      <div className="flex items-center gap-2 mb-2.5">
+        <div
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-medium ${cat.bg} ${cat.color}`}
+        >
+          <Icon className="w-3 h-3" />
+          {notice.category}
+        </div>
+        {showBranchBadge && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent/10 border border-accent/20 text-[10px] font-semibold text-accent">
+            <Sparkles className="w-2.5 h-2.5" />
+            Your Branch
+          </span>
+        )}
       </div>
 
       {/* Title */}
@@ -105,7 +134,7 @@ function NoticeCard({ notice, index }: { notice: Notice; index: number }) {
           <Clock className="w-3 h-3" />
           <span>{notice.time}</span>
         </div>
-        <span>•</span>
+        <span>·</span>
         <span>{formatDate(notice.date)}</span>
       </div>
     </motion.div>
@@ -125,24 +154,59 @@ function formatDate(dateStr: string): string {
 
 export function LiveFeed() {
   const { notices } = useNotices();
+  const [filter, setFilter] = useState<NoticeCategory | "All">("All");
+
+  const filtered =
+    filter === "All" ? notices : notices.filter((n) => n.category === filter);
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between mb-1">
+    <div className="space-y-4">
+      {/* Header with filter */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-accent" />
           <h2 className="text-sm font-semibold text-foreground">Live Feed</h2>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-medium">
-            {notices.length} notices
+            {filtered.length}
           </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Filter className="w-3.5 h-3.5 text-muted-foreground" />
         </div>
       </div>
 
-      <div className="space-y-3 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
-        {notices.map((notice, i) => (
-          <NoticeCard key={notice.id} notice={notice} index={i} />
+      {/* Filter chips */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+        {filterOptions.map((opt) => (
+          <button
+            key={opt}
+            onClick={() => setFilter(opt)}
+            className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+              filter === opt
+                ? "bg-accent/15 text-accent border border-accent/30"
+                : "text-muted-foreground border border-border/50 hover:bg-muted/50"
+            }`}
+          >
+            {opt}
+          </button>
         ))}
       </div>
+
+      {/* Cards with layout animation */}
+      <LayoutGroup>
+        <div className="space-y-3 max-h-[calc(100vh-400px)] overflow-y-auto pr-1">
+          <AnimatePresence mode="popLayout">
+            {filtered.map((notice) => (
+              <NoticeCard key={notice.id} notice={notice} />
+            ))}
+          </AnimatePresence>
+          {filtered.length === 0 && (
+            <div className="py-8 text-center text-xs text-muted-foreground">
+              No notices in this category yet.
+            </div>
+          )}
+        </div>
+      </LayoutGroup>
     </div>
   );
 }
