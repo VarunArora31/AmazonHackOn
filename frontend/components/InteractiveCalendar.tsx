@@ -78,19 +78,19 @@ export function InteractiveCalendar() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ─── Active date: URL is source of truth, fallback to today ──
+  // Active date: URL is source of truth, fallback to today
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const urlDateParam = searchParams.get("date");
   const activeDateString = urlDateParam || todayStr;
   const isShowingToday = activeDateString === todayStr;
 
-  // ─── Month navigation (local, visual only) ───────────────────
+  // Month navigation (local, visual only)
   const [currentMonth, setCurrentMonth] = useState(() => {
     return new Date(activeDateString + "T00:00:00");
   });
   const [direction, setDirection] = useState(0);
 
-  // Sync calendar month view when URL active date changes
+  // Sync month view when URL changes
   useEffect(() => {
     const activeDate = new Date(activeDateString + "T00:00:00");
     if (!isSameMonth(activeDate, currentMonth)) {
@@ -99,14 +99,14 @@ export function InteractiveCalendar() {
     }
   }, [activeDateString]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Route-based dot filter ───────────────────────────────────
+  // Route-based dot filter
   const filterCategory = getCategoryFromPath(pathname);
   const eventDates = useMemo(
     () => getAllEventDates(filterCategory),
     [filterCategory]
   );
 
-  // ─── Calendar grid ────────────────────────────────────────────
+  // Calendar grid
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -114,8 +114,7 @@ export function InteractiveCalendar() {
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   const monthKey = format(currentMonth, "yyyy-MM");
 
-  // ─── Handlers ─────────────────────────────────────────────────
-
+  // Handlers
   const goNextMonth = () => {
     setDirection(1);
     setCurrentMonth((m) => addMonths(m, 1));
@@ -132,13 +131,11 @@ export function InteractiveCalendar() {
       setDirection(today > currentMonth ? 1 : -1);
       setCurrentMonth(today);
     }
-    // Strip ?date= param — calendar will reactively fallback to todayStr
     router.push(pathname, { scroll: false });
   };
 
   const handleDateClick = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    // If clicking the currently active date, deselect (go back to today)
     if (dateStr === activeDateString) {
       router.push(pathname, { scroll: false });
     } else {
@@ -149,64 +146,58 @@ export function InteractiveCalendar() {
   const weekDays = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
   return (
-    <div
-      className="relative rounded-2xl border border-zinc-800/80 backdrop-blur-xl overflow-hidden"
-      style={{
-        background:
-          "radial-gradient(ellipse 80% 60% at 50% 120%, rgba(139,92,246,0.04) 0%, transparent 60%), rgba(24,24,27,0.3)",
-      }}
-    >
+    <div className="relative rounded-2xl border border-stone-200/60 dark:border-zinc-800/80 bg-stone-50 dark:bg-transparent backdrop-blur-xl overflow-hidden shadow-sm dark:shadow-none">
       <div className="p-4">
-        {/* ─── Header ────────────────────────────────────────── */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Calendar className="w-3.5 h-3.5 text-violet-400/80" />
-            <h2 className="text-[13px] font-semibold text-zinc-200 tracking-tight">
+            <Calendar className="w-3.5 h-3.5 text-indigo-500 dark:text-violet-400" />
+            <h2 className="text-[13px] font-semibold text-stone-800 dark:text-zinc-200 tracking-tight">
               {format(currentMonth, "MMMM yyyy")}
             </h2>
           </div>
           <div className="flex items-center gap-0.5">
             <button
               onClick={goPrevMonth}
-              className="p-1.5 rounded-lg hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors"
+              className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-white/[0.04] transition-colors"
             >
-              <ChevronLeft className="w-3.5 h-3.5 text-zinc-500" />
+              <ChevronLeft className="w-3.5 h-3.5 text-stone-400 dark:text-zinc-500" />
             </button>
             <button
               onClick={jumpToToday}
-              className="px-2 py-1 rounded-lg text-[10px] font-medium text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300 transition-colors"
+              className="px-2 py-1 rounded-lg text-[10px] font-medium text-stone-500 dark:text-zinc-500 hover:bg-stone-100 dark:hover:bg-white/[0.04] hover:text-stone-700 dark:hover:text-zinc-300 transition-colors"
             >
               Today
             </button>
             <button
               onClick={goNextMonth}
-              className="p-1.5 rounded-lg hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors"
+              className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-white/[0.04] transition-colors"
             >
-              <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+              <ChevronRight className="w-3.5 h-3.5 text-stone-400 dark:text-zinc-500" />
             </button>
           </div>
         </div>
 
-        {/* ─── Route context indicator ───────────────────────── */}
+        {/* Route context */}
         {filterCategory && (
-          <div className="mb-3 px-2.5 py-1.5 rounded-lg bg-violet-500/[0.06] border border-violet-500/10 text-[10px] text-violet-400/90 font-medium">
+          <div className="mb-3 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-violet-500/[0.06] border border-indigo-100 dark:border-violet-500/10 text-[10px] text-indigo-600 dark:text-violet-400 font-medium">
             Showing: {filterCategory}
           </div>
         )}
 
-        {/* ─── Weekday headers ───────────────────────────────── */}
+        {/* Weekday headers */}
         <div className="grid grid-cols-7 mb-1.5">
           {weekDays.map((day) => (
             <div
               key={day}
-              className="text-center text-[9px] font-semibold text-zinc-600 uppercase tracking-widest py-1"
+              className="text-center text-[9px] font-semibold text-stone-400 dark:text-zinc-600 uppercase tracking-widest py-1"
             >
               {day}
             </div>
           ))}
         </div>
 
-        {/* ─── Z-Axis Depth Morph Grid ───────────────────────── */}
+        {/* Z-Axis Depth Morph Grid */}
         <div className="relative overflow-hidden rounded-xl">
           <AnimatePresence mode="popLayout" initial={false} custom={direction}>
             <motion.div
@@ -224,8 +215,6 @@ export function InteractiveCalendar() {
                 const inMonth = isSameMonth(day, currentMonth);
                 const today = isToday(day);
                 const hasEvent = eventDates.has(dateStr);
-
-                // ── KEY FIX: derive selection strictly from URL-synced activeDateString
                 const isSelected = dateStr === activeDateString;
 
                 return (
@@ -236,17 +225,17 @@ export function InteractiveCalendar() {
                       relative flex flex-col items-center justify-center py-[7px] rounded-md text-[11px] transition-all duration-150
                       ${
                         !inMonth
-                          ? "text-zinc-700/50 pointer-events-none"
-                          : "text-zinc-200 hover:bg-white/[0.05] active:bg-white/[0.08]"
+                          ? "text-stone-300 dark:text-zinc-700/50 pointer-events-none"
+                          : "text-stone-700 dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-white/[0.05]"
                       }
                       ${
                         isSelected
-                          ? "bg-violet-600 text-white font-bold shadow-[0_0_12px_rgba(139,92,246,0.35)] ring-1 ring-violet-400/50"
+                          ? "bg-indigo-600 dark:bg-violet-600 text-white font-bold shadow-lg shadow-indigo-500/20 dark:shadow-violet-500/20 ring-1 ring-indigo-500/50 dark:ring-violet-400/50"
                           : ""
                       }
                       ${
                         today && !isSelected
-                          ? "ring-1 ring-violet-500/60 text-violet-300 font-semibold"
+                          ? "ring-2 ring-indigo-600 dark:ring-violet-500/60 text-indigo-600 dark:text-violet-300 font-semibold"
                           : ""
                       }
                     `}
@@ -256,8 +245,8 @@ export function InteractiveCalendar() {
                       <span
                         className={`absolute bottom-[3px] size-[3px] rounded-full ${
                           isSelected
-                            ? "bg-white/80"
-                            : "bg-violet-400 shadow-[0_0_5px_rgba(139,92,246,0.7)]"
+                            ? "bg-stone-50/80"
+                            : "bg-indigo-500 dark:bg-violet-400 shadow-[0_0_4px_rgba(99,102,241,0.6)] dark:shadow-[0_0_4px_rgba(139,92,246,0.6)]"
                         }`}
                       />
                     )}
@@ -268,7 +257,7 @@ export function InteractiveCalendar() {
           </AnimatePresence>
         </div>
 
-        {/* ─── Selected date detail (only when viewing non-today) */}
+        {/* Selected date detail */}
         <AnimatePresence>
           {!isShowingToday && (
             <motion.div
@@ -276,15 +265,15 @@ export function InteractiveCalendar() {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="mt-3 pt-3 border-t border-white/[0.04] space-y-1.5 overflow-hidden"
+              className="mt-3 pt-3 border-t border-stone-200/60 dark:border-white/[0.04] space-y-1.5 overflow-hidden"
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                <p className="text-[10px] font-semibold text-stone-500 dark:text-zinc-500 uppercase tracking-wider">
                   {format(new Date(activeDateString + "T00:00:00"), "EEEE, MMM d")}
                 </p>
                 <button
                   onClick={jumpToToday}
-                  className="flex items-center gap-1 text-[10px] text-violet-400 hover:text-violet-300 transition-colors"
+                  className="flex items-center gap-1 text-[10px] text-indigo-500 dark:text-violet-400 hover:text-indigo-600 dark:hover:text-violet-300 transition-colors"
                 >
                   <RotateCcw className="w-2.5 h-2.5" />
                   Back to today
@@ -295,16 +284,15 @@ export function InteractiveCalendar() {
                 .map((event) => (
                   <div
                     key={event.id}
-                    className="px-2.5 py-1.5 rounded-lg border border-white/[0.04] bg-white/[0.02] text-[11px] text-zinc-300"
+                    className="px-2.5 py-1.5 rounded-lg border border-stone-200/60 dark:border-white/[0.04] bg-stone-50 dark:bg-zinc-900/40 text-[11px] text-stone-700 dark:text-zinc-300"
                   >
                     <span className="font-medium">{event.title}</span>
-                    <span className="ml-2 text-zinc-600">{event.time}</span>
+                    <span className="ml-2 text-stone-400 dark:text-zinc-600">{event.time}</span>
                   </div>
                 ))}
-              {calendarEvents.filter((e) => e.date === activeDateString)
-                .length === 0 && (
-                <p className="text-[11px] text-zinc-700 py-2">
-                  No scheduled events for this date
+              {calendarEvents.filter((e) => e.date === activeDateString).length === 0 && (
+                <p className="text-[11px] text-stone-400 dark:text-zinc-700 py-2">
+                  No scheduled events
                 </p>
               )}
             </motion.div>

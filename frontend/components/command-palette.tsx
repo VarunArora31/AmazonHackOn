@@ -26,14 +26,14 @@ export function SearchTriggerButton() {
   return (
     <button
       onClick={open}
-      className="flex items-center gap-2.5 w-full max-w-[260px] px-3 py-2 rounded-lg bg-zinc-900/50 border border-white/[0.05] text-zinc-500 hover:text-zinc-300 hover:border-white/[0.1] transition-all"
+      className="flex items-center gap-2.5 w-full max-w-[260px] px-3 py-2 rounded-lg bg-stone-50/70 dark:bg-zinc-900/50 backdrop-blur-xl border border-stone-200/50 dark:border-white/[0.05] text-stone-500 dark:text-zinc-500 hover:text-stone-700 dark:hover:text-zinc-300 hover:border-stone-300 dark:hover:border-white/[0.1] shadow-sm dark:shadow-none transition-all"
     >
       <Search className="w-3.5 h-3.5 shrink-0" />
       <span className="text-xs flex-1 text-left truncate">
         Search CampusFlow...
       </span>
       {/* Desktop-only shortcut badge */}
-      <kbd className="hidden md:flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[10px] font-mono text-zinc-400 shrink-0">
+      <kbd className="hidden md:flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-stone-100 dark:bg-zinc-800 border border-stone-300 dark:border-zinc-700 text-[10px] font-mono text-stone-600 dark:text-zinc-400 shrink-0">
         /
       </kbd>
     </button>
@@ -84,18 +84,18 @@ export function CommandPaletteDialog() {
             className="relative w-full max-w-[560px] mx-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <Command className="rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl overflow-hidden">
-              <div className="flex items-center border-b border-zinc-800/80 px-4">
-                <Search className="w-4 h-4 text-zinc-500 mr-3 shrink-0" />
+            <Command className="rounded-2xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 shadow-2xl overflow-hidden">
+              <div className="flex items-center border-b border-stone-200 dark:border-zinc-800/80 px-4">
+                <Search className="w-4 h-4 text-stone-400 dark:text-zinc-500 mr-3 shrink-0" />
                 <Command.Input
                   placeholder="Search notices, schedule, mess menu, timings..."
-                  className="flex-1 bg-transparent text-sm py-4 outline-none text-zinc-200 placeholder:text-zinc-600"
+                  className="flex-1 bg-transparent text-sm py-4 outline-none text-stone-800 dark:text-zinc-200 placeholder:text-stone-400 dark:placeholder:text-zinc-600"
                   autoFocus
                 />
               </div>
 
               <Command.List className="max-h-[360px] overflow-y-auto p-2">
-                <Command.Empty className="py-8 text-center text-sm text-zinc-600">
+                <Command.Empty className="py-8 text-center text-sm text-stone-400 dark:text-zinc-600">
                   No results found.
                 </Command.Empty>
 
@@ -106,18 +106,18 @@ export function CommandPaletteDialog() {
                       key={notice.id}
                       value={`${notice.title} ${notice.category} ${notice.summary}`}
                       onSelect={close}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm text-zinc-400 data-[selected=true]:bg-zinc-800/50 data-[selected=true]:text-violet-400"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm text-stone-600 dark:text-zinc-400 data-[selected=true]:bg-stone-100 dark:data-[selected=true]:bg-zinc-800/50 data-[selected=true]:text-indigo-600 dark:data-[selected=true]:text-violet-400"
                     >
                       <div className="shrink-0">
                         {notice.category === "Placement" && <Briefcase className="w-4 h-4 text-purple-400" />}
                         {notice.category === "Academics" && <GraduationCap className="w-4 h-4 text-blue-400" />}
                         {notice.category === "Hostel Admin" && <Building2 className="w-4 h-4 text-orange-400" />}
                         {notice.category === "Club Event" && <Trophy className="w-4 h-4 text-emerald-400" />}
-                        {(notice.category === "General" || notice.category === "Sports") && <Bell className="w-4 h-4 text-zinc-500" />}
+                        {(notice.category === "General" || notice.category === "Sports") && <Bell className="w-4 h-4 text-stone-400 dark:text-zinc-500" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium text-zinc-200">{notice.title}</p>
-                        <p className="truncate text-xs text-zinc-500 mt-0.5">{notice.summary}</p>
+                        <p className="truncate font-medium text-stone-800 dark:text-zinc-200">{notice.title}</p>
+                        <p className="truncate text-xs text-stone-500 dark:text-zinc-500 mt-0.5">{notice.summary}</p>
                       </div>
                       {notice.urgency === "critical" && (
                         <span className="shrink-0 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -126,7 +126,7 @@ export function CommandPaletteDialog() {
                   ))}
                 </Command.Group>
 
-                <Command.Separator className="my-2 h-px bg-zinc-800/60" />
+                <Command.Separator className="my-2 h-px bg-slate-200 dark:bg-zinc-800/60" />
 
                 {/* Schedule */}
                 <Command.Group heading="Schedule">
@@ -135,18 +135,18 @@ export function CommandPaletteDialog() {
                       key={event.id}
                       value={`${event.title} ${event.date} ${event.time}`}
                       onSelect={close}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm text-zinc-400 data-[selected=true]:bg-zinc-800/50 data-[selected=true]:text-violet-400"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm text-stone-600 dark:text-zinc-400 data-[selected=true]:bg-stone-100 dark:data-[selected=true]:bg-zinc-800/50 data-[selected=true]:text-indigo-600 dark:data-[selected=true]:text-violet-400"
                     >
-                      <Calendar className="w-4 h-4 text-violet-400 shrink-0" />
+                      <Calendar className="w-4 h-4 text-indigo-500 dark:text-violet-400 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium text-zinc-200">{event.title}</p>
-                        <p className="text-xs text-zinc-500 mt-0.5">{event.time}</p>
+                        <p className="truncate font-medium text-stone-800 dark:text-zinc-200">{event.title}</p>
+                        <p className="text-xs text-stone-500 dark:text-zinc-500 mt-0.5">{event.time}</p>
                       </div>
                     </Command.Item>
                   ))}
                 </Command.Group>
 
-                <Command.Separator className="my-2 h-px bg-zinc-800/60" />
+                <Command.Separator className="my-2 h-px bg-slate-200 dark:bg-zinc-800/60" />
 
                 {/* Hostel */}
                 <Command.Group heading="Hostel & Mess">
@@ -155,17 +155,17 @@ export function CommandPaletteDialog() {
                       key={timing.label}
                       value={`${timing.label} ${timing.time} mess hostel`}
                       onSelect={close}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm text-zinc-400 data-[selected=true]:bg-zinc-800/50 data-[selected=true]:text-violet-400"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm text-stone-600 dark:text-zinc-400 data-[selected=true]:bg-stone-100 dark:data-[selected=true]:bg-zinc-800/50 data-[selected=true]:text-indigo-600 dark:data-[selected=true]:text-violet-400"
                     >
                       {timing.label.includes("Mess") ? (
                         <UtensilsCrossed className="w-4 h-4 text-amber-400 shrink-0" />
                       ) : (
-                        <Clock className="w-4 h-4 text-zinc-500 shrink-0" />
+                        <Clock className="w-4 h-4 text-stone-400 dark:text-zinc-500 shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium text-zinc-200">{timing.label}</p>
+                        <p className="truncate font-medium text-stone-800 dark:text-zinc-200">{timing.label}</p>
                       </div>
-                      <span className="text-xs font-mono text-zinc-600">{timing.time}</span>
+                      <span className="text-xs font-mono text-stone-500 dark:text-zinc-600">{timing.time}</span>
                       {timing.active && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
                     </Command.Item>
                   ))}
@@ -173,7 +173,7 @@ export function CommandPaletteDialog() {
               </Command.List>
 
               {/* Footer */}
-              <div className="border-t border-zinc-800/80 px-4 py-2.5 flex items-center justify-between text-[10px] text-zinc-600">
+              <div className="border-t border-stone-200 dark:border-zinc-800/80 px-4 py-2.5 flex items-center justify-between text-[10px] text-stone-400 dark:text-zinc-600">
                 <div className="flex items-center gap-3">
                   <span>↑↓ Navigate</span>
                   <span>↵ Select</span>

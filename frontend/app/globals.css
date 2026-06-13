@@ -1,27 +1,47 @@
 @import "tailwindcss";
 
+/* ─── Dark Mode: Use class strategy (not prefers-color-scheme) ── */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─── Global Theme Transition (smooth crossfade on toggle) ────── */
+@layer base {
+  html, body {
+    transition-property: background-color, color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
+  }
+
+  * {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+}
+
+/* ─── Light Mode: Warm Paper (Stone palette) ─────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --card: #ffffff;
-  --card-foreground: #0a0a0a;
-  --popover: #ffffff;
-  --popover-foreground: #0a0a0a;
-  --muted: #f5f5f5;
-  --muted-foreground: #737373;
-  --border: #e5e5e5;
-  --input: #e5e5e5;
-  --accent: #7c3aed;
+  --background: #f5f5f4;
+  --foreground: #292524;
+  --card: #fafaf9;
+  --card-foreground: #292524;
+  --popover: #fafaf9;
+  --popover-foreground: #292524;
+  --muted: #e7e5e4;
+  --muted-foreground: #78716c;
+  --border: rgba(168, 162, 158, 0.4);
+  --input: #d6d3d1;
+  --accent: #6366f1;
   --accent-foreground: #ffffff;
   --destructive: #ef4444;
   --success: #10b981;
   --warning: #f59e0b;
-  --ring: #7c3aed;
-  --sidebar: #fafafa;
-  --sidebar-foreground: #0a0a0a;
+  --ring: #6366f1;
+  --sidebar: #fafaf9;
+  --sidebar-foreground: #292524;
   --radius: 0.75rem;
 }
 
+/* ─── Dark Mode: Obsidian & Neon ─────────────────────────────── */
 .dark {
   --background: #0a0a0a;
   --foreground: #e4e4e7;
@@ -78,36 +98,55 @@ body {
 
 /* ─── Glass surface ──────────────────────────────────────────── */
 .glass {
-  background: rgba(10, 10, 10, 0.8);
+  background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(24px) saturate(150%);
   -webkit-backdrop-filter: blur(24px) saturate(150%);
 }
 
+.dark .glass {
+  background: rgba(10, 10, 10, 0.8);
+}
+
 /* ─── Omni-bar glow ──────────────────────────────────────────── */
 .omni-glow {
-  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.08),
-    0 0 30px rgba(139, 92, 246, 0.06);
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.05);
   transition: box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .omni-glow:focus-within {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1),
+    0 0 0 1px rgba(99, 102, 241, 0.3),
+    0 4px 12px rgba(99, 102, 241, 0.08);
+}
+
+.dark .omni-glow {
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.08),
+    0 0 30px rgba(139, 92, 246, 0.06);
+}
+
+.dark .omni-glow:focus-within {
   box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.3),
     0 0 40px rgba(139, 92, 246, 0.12),
     0 0 80px rgba(139, 92, 246, 0.04);
 }
 
-/* ─── Card hover lift + neon glow ────────────────────────────── */
+/* ─── Card hover ─────────────────────────────────────────────── */
 .card-glow {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card-glow:hover {
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.dark .card-glow:hover {
   box-shadow: 0 0 15px rgba(139, 92, 246, 0.08),
     0 8px 25px rgba(0, 0, 0, 0.4);
 }
 
-/* ─── Scrollbar (ultra-thin) ─────────────────────────────────── */
+/* ─── Scrollbar ──────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 3px;
 }
@@ -117,11 +156,19 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(148, 163, 184, 0.3);
   border-radius: 2px;
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.12);
 }
 
@@ -137,7 +184,7 @@ body {
 
 /* ─── Gradient text ──────────────────────────────────────────── */
 .gradient-text {
-  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 40%, #c4b5fd 100%);
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 40%, #a78bfa 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -157,6 +204,15 @@ body {
   width: 1px;
   background: linear-gradient(
     180deg,
+    rgba(148, 163, 184, 0.2) 0%,
+    rgba(99, 102, 241, 0.2) 50%,
+    rgba(148, 163, 184, 0.1) 100%
+  );
+}
+
+.dark .timeline-line::before {
+  background: linear-gradient(
+    180deg,
     rgba(255, 255, 255, 0.06) 0%,
     rgba(139, 92, 246, 0.15) 50%,
     rgba(255, 255, 255, 0.03) 100%
@@ -165,10 +221,17 @@ body {
 
 /* ─── Command palette (cmdk) ─────────────────────────────────── */
 [cmdk-dialog] {
-  background: #0a0a0a;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.3);
   border-radius: 16px;
   overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+.dark [cmdk-dialog] {
+  background: #0a0a0a;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8),
     0 0 40px rgba(139, 92, 246, 0.05);
 }
@@ -177,13 +240,21 @@ body {
   background: transparent;
   border: none;
   outline: none;
-  color: #e4e4e7;
+  color: #0f172a;
   font-size: 15px;
   width: 100%;
   padding: 16px 20px;
 }
 
+.dark [cmdk-input] {
+  color: #e4e4e7;
+}
+
 [cmdk-input]::placeholder {
+  color: #94a3b8;
+}
+
+.dark [cmdk-input]::placeholder {
   color: #52525b;
 }
 
@@ -201,16 +272,29 @@ body {
   align-items: center;
   gap: 12px;
   font-size: 14px;
-  color: #a1a1aa;
+  color: #475569;
   transition: all 0.15s ease;
 }
 
+.dark [cmdk-item] {
+  color: #a1a1aa;
+}
+
 [cmdk-item][data-selected="true"] {
+  background: #f1f5f9;
+  color: #4f46e5;
+}
+
+.dark [cmdk-item][data-selected="true"] {
   background: rgba(255, 255, 255, 0.04);
   color: #a78bfa;
 }
 
 [cmdk-item]:hover {
+  background: #f8fafc;
+}
+
+.dark [cmdk-item]:hover {
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -220,18 +304,30 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  color: #94a3b8;
+}
+
+.dark [cmdk-group-heading] {
   color: #52525b;
 }
 
 [cmdk-separator] {
   height: 1px;
-  background: rgba(255, 255, 255, 0.05);
+  background: #e2e8f0;
   margin: 4px 0;
+}
+
+.dark [cmdk-separator] {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 [cmdk-empty] {
   padding: 24px;
   text-align: center;
-  color: #52525b;
+  color: #94a3b8;
   font-size: 14px;
+}
+
+.dark [cmdk-empty] {
+  color: #52525b;
 }

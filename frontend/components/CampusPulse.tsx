@@ -37,25 +37,25 @@ const statusConfig: Record<
     color: "text-emerald-400",
     dotColor: "bg-emerald-500",
     label: "Low",
-    textHint: "text-zinc-200",
+    textHint: "text-stone-700 dark:text-zinc-200",
   },
   MODERATE: {
     color: "text-amber-400",
     dotColor: "bg-amber-500",
     label: "Busy",
-    textHint: "text-zinc-300",
+    textHint: "text-stone-700 dark:text-zinc-200",
   },
   PEAK: {
     color: "text-red-400",
     dotColor: "bg-red-500",
     label: "Peak",
-    textHint: "text-zinc-200",
+    textHint: "text-stone-700 dark:text-zinc-200",
   },
   CLOSED: {
     color: "text-zinc-600",
     dotColor: "bg-zinc-600",
     label: "Closed",
-    textHint: "text-zinc-500",
+    textHint: "text-stone-500 dark:text-zinc-500",
   },
 };
 
@@ -164,8 +164,8 @@ function FacilityPill({ facility }: { facility: Facility }) {
       className={`
         relative flex items-center gap-3 rounded-full shrink-0
         px-4 py-2 border backdrop-blur-md
-        bg-zinc-900/50 border-white/[0.05]
-        hover:border-white/[0.1] hover:bg-zinc-900/70
+        bg-stone-50 dark:bg-zinc-900/50 border-stone-200/60 dark:border-white/[0.05] shadow-sm dark:shadow-none
+        hover:border-stone-300 dark:hover:border-white/[0.1] hover:bg-stone-50 dark:hover:bg-zinc-900/70
         transition-colors duration-300
       `}
     >
@@ -177,7 +177,7 @@ function FacilityPill({ facility }: { facility: Facility }) {
             animate={{ opacity: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1.5 }}
-            className="absolute inset-0 rounded-full bg-violet-500/10 pointer-events-none"
+            className="absolute inset-0 rounded-full bg-indigo-500/10 dark:bg-violet-500/10 pointer-events-none"
           />
         )}
       </AnimatePresence>
@@ -200,11 +200,11 @@ function FacilityPill({ facility }: { facility: Facility }) {
           {facility.shortName}:
         </span>
         {facility.status === "CLOSED" ? (
-          <span className="text-xs text-zinc-600">Closed</span>
+          <span className="text-xs text-stone-400 dark:text-zinc-600">Closed</span>
         ) : (
-          <span className="text-xs text-zinc-400 whitespace-nowrap">
+          <span className="text-xs text-stone-600 dark:text-zinc-400 whitespace-nowrap">
             <AnimatedValue value={facility.occupancy} />{" "}
-            <span className="text-zinc-500">{facility.metric}</span>
+            <span className="text-stone-500 dark:text-zinc-500">{facility.metric}</span>
           </span>
         )}
       </div>
@@ -259,8 +259,8 @@ export function CampusPulse() {
     >
       {/* Header row */}
       <div className="flex items-center gap-2 mb-3">
-        <Activity className="w-3.5 h-3.5 text-zinc-500" />
-        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
+        <Activity className="w-3.5 h-3.5 text-stone-500 dark:text-zinc-500" />
+        <span className="text-[11px] font-medium text-stone-500 dark:text-zinc-500 uppercase tracking-wider">
           Campus Pulse
         </span>
         <div className="flex-1" />

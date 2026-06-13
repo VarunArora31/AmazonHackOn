@@ -65,3 +65,12 @@ export const roleToRoutesMap: Record<AdminRole, string[]> = {
   CLUB_LEAD: ["/dashboard", "/dashboard/club"],
   SPORTS_ADMIN: ["/dashboard", "/dashboard/sports"],
 };
+
+/** Maps admin roles to the notice category they own */
+export const roleToCategoryMap: Record<AdminRole, string> = {
+  ADMIN_HOSTEL: "Hostel Admin",
+  ADMIN_PLACEMENT: "Placement",
+  ADMIN_ACADEMICS: "Academics",
+  CLUB_LEAD: "Club Event",
+  SPORTS_ADMIN: "Sports",
+};
