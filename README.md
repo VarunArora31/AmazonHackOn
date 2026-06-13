@@ -1,4 +1,4 @@
-# CampusFlow
+# CampusFlow 🎓
 
 **Built for HackOn with Amazon - Season 6.0**
 **Theme:** AI for Campus, Community & Everyday Life
