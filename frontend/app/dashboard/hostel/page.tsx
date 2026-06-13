@@ -1,12 +1,22 @@
 "use client";
 
-import { Suspense } from "react";
-import { SectionFeed } from "@/components/SectionFeed";
+import { useMemo } from "react";
+import { useNotices } from "@/lib/notices-context";
+import { UniversalTimeline } from "@/components/UniversalTimeline";
 
 export default function HostelPage() {
+  const { notices } = useNotices();
+
+  const hostelEvents = useMemo(
+    () => notices.filter((n) => n.category === "Hostel Admin"),
+    [notices]
+  );
+
   return (
-    <Suspense fallback={null}>
-      <SectionFeed category="Hostel Admin" title="Hostel & Mess" />
-    </Suspense>
+    <UniversalTimeline
+      events={hostelEvents}
+      title="Hostel & Mess"
+      emptyMessage="No hostel notices found."
+    />
   );
 }

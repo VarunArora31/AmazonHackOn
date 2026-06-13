@@ -1,12 +1,22 @@
 "use client";
 
-import { Suspense } from "react";
-import { SectionFeed } from "@/components/SectionFeed";
+import { useMemo } from "react";
+import { useNotices } from "@/lib/notices-context";
+import { UniversalTimeline } from "@/components/UniversalTimeline";
 
 export default function ClubPage() {
+  const { notices } = useNotices();
+
+  const clubEvents = useMemo(
+    () => notices.filter((n) => n.category === "Club Event"),
+    [notices]
+  );
+
   return (
-    <Suspense fallback={null}>
-      <SectionFeed category="Club Event" title="Clubs & Events" />
-    </Suspense>
+    <UniversalTimeline
+      events={clubEvents}
+      title="Clubs & Events"
+      emptyMessage="No club events found."
+    />
   );
 }

@@ -3,10 +3,12 @@
 import { Suspense } from "react";
 import { UserProvider } from "@/lib/user-context";
 import { NoticesProvider } from "@/lib/notices-context";
+import { CommandPaletteProvider } from "@/lib/command-palette-context";
 import { GlobalSidebar } from "@/components/GlobalSidebar";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { InteractiveCalendar } from "@/components/InteractiveCalendar";
 import { AddAnnouncementCTA } from "@/components/AddAnnouncementCTA";
+import { CommandPaletteDialog } from "@/components/command-palette";
 
 export default function DashboardLayout({
   children,
@@ -16,36 +18,41 @@ export default function DashboardLayout({
   return (
     <UserProvider>
       <NoticesProvider>
-        <div className="flex h-screen overflow-hidden bg-background">
-          {/* Left: Global Sidebar */}
-          <GlobalSidebar />
+        <CommandPaletteProvider>
+          <div className="flex h-screen overflow-hidden bg-background">
+            {/* Left: Global Sidebar */}
+            <GlobalSidebar />
 
-          {/* Center: Main Content */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Top: Persistent Header with Omni-bar */}
-            <DashboardHeader />
+            {/* Center: Main Content */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Top: Persistent Header with Omni-bar */}
+              <DashboardHeader />
 
-            {/* Content Area */}
-            <div className="flex-1 flex overflow-hidden">
-              {/* Feed (children routes render here) */}
-              <main className="flex-1 overflow-y-auto px-6 py-5">
-                <Suspense fallback={<FeedSkeleton />}>
-                  {children}
-                </Suspense>
-              </main>
+              {/* Content Area */}
+              <div className="flex-1 flex overflow-hidden">
+                {/* Feed (children routes render here) */}
+                <main className="flex-1 overflow-y-auto px-6 py-5">
+                  <Suspense fallback={<FeedSkeleton />}>
+                    {children}
+                  </Suspense>
+                </main>
 
-              {/* Right: Calendar Sidebar */}
-              <aside className="hidden xl:block w-[280px] border-l border-border/50 overflow-y-auto px-4 py-5 shrink-0">
-                <Suspense fallback={null}>
-                  <InteractiveCalendar />
-                </Suspense>
-              </aside>
+                {/* Right: Calendar Sidebar */}
+                <aside className="hidden xl:block w-[280px] border-l border-border/50 overflow-y-auto px-4 py-5 shrink-0">
+                  <Suspense fallback={null}>
+                    <InteractiveCalendar />
+                  </Suspense>
+                </aside>
+              </div>
             </div>
-          </div>
 
-          {/* RBAC-aware floating CTA */}
-          <AddAnnouncementCTA />
-        </div>
+            {/* RBAC-aware floating CTA */}
+            <AddAnnouncementCTA />
+
+            {/* Global Command Palette (rendered once, shared via context) */}
+            <CommandPaletteDialog />
+          </div>
+        </CommandPaletteProvider>
       </NoticesProvider>
     </UserProvider>
   );

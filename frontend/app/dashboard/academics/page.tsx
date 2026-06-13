@@ -1,12 +1,22 @@
 "use client";
 
-import { Suspense } from "react";
-import { SectionFeed } from "@/components/SectionFeed";
+import { useMemo } from "react";
+import { useNotices } from "@/lib/notices-context";
+import { UniversalTimeline } from "@/components/UniversalTimeline";
 
 export default function AcademicsPage() {
+  const { notices } = useNotices();
+
+  const academicEvents = useMemo(
+    () => notices.filter((n) => n.category === "Academics"),
+    [notices]
+  );
+
   return (
-    <Suspense fallback={null}>
-      <SectionFeed category="Academics" title="Academic Notices" />
-    </Suspense>
+    <UniversalTimeline
+      events={academicEvents}
+      title="Academic Notices"
+      emptyMessage="No academic notices found."
+    />
   );
 }

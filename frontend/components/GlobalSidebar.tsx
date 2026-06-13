@@ -13,11 +13,13 @@ import {
   Workflow,
   Settings,
   LogOut,
+  User,
 } from "lucide-react";
 import { useUser } from "@/lib/user-context";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "All Feed" },
+  { href: "/dashboard/personal", icon: User, label: "My Space" },
   { href: "/dashboard/academics", icon: GraduationCap, label: "Academics" },
   { href: "/dashboard/hostel", icon: Building2, label: "Hostel" },
   { href: "/dashboard/placement", icon: Briefcase, label: "Placement" },

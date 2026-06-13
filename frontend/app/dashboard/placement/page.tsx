@@ -1,12 +1,22 @@
 "use client";
 
-import { Suspense } from "react";
-import { SectionFeed } from "@/components/SectionFeed";
+import { useMemo } from "react";
+import { useNotices } from "@/lib/notices-context";
+import { UniversalTimeline } from "@/components/UniversalTimeline";
 
 export default function PlacementPage() {
+  const { notices } = useNotices();
+
+  const placementEvents = useMemo(
+    () => notices.filter((n) => n.category === "Placement"),
+    [notices]
+  );
+
   return (
-    <Suspense fallback={null}>
-      <SectionFeed category="Placement" title="Placement Drives" />
-    </Suspense>
+    <UniversalTimeline
+      events={placementEvents}
+      title="Placement Drives"
+      emptyMessage="No placement notices found."
+    />
   );
 }

@@ -17,6 +17,7 @@ import { CommandPalette } from "./command-palette";
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "All Notices",
+  "/dashboard/personal": "My Space",
   "/dashboard/academics": "Academics",
   "/dashboard/hostel": "Hostel & Mess",
   "/dashboard/placement": "Placements",

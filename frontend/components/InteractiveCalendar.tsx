@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   startOfMonth,
   endOfMonth,
@@ -11,210 +11,306 @@ import {
   eachDayOfInterval,
   format,
   isSameMonth,
-  isSameDay,
   isToday,
   addMonths,
   subMonths,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, ChevronRight, Calendar, RotateCcw } from "lucide-react";
 import { calendarEvents, notices } from "@/lib/data";
 import { routeToCategoryMap, type DashboardSection } from "@/lib/types";
 
-// Merge calendar events + notice dates for dot indicators
+// ─── Helpers ────────────────────────────────────────────────────
+
 function getAllEventDates(filterCategory?: string): Set<string> {
   const dates = new Set<string>();
-
   calendarEvents.forEach((event) => {
     if (!filterCategory || event.type === "event" || event.type === "class") {
       dates.add(event.date);
     }
   });
-
   notices.forEach((notice) => {
     if (!filterCategory || notice.category === filterCategory) {
       dates.add(notice.date);
     }
   });
-
   return dates;
 }
 
-// Determine which category to filter by based on route
 function getCategoryFromPath(pathname: string): string | undefined {
   const segment = pathname.split("/").pop() as DashboardSection | undefined;
   if (segment && segment in routeToCategoryMap) {
     return routeToCategoryMap[segment];
   }
-  return undefined; // Show all on /dashboard
+  return undefined;
 }
+
+// ─── Z-Axis Depth Morph Variants ────────────────────────────────
+
+const depthVariants = {
+  initial: (direction: number) => ({
+    opacity: 0,
+    scale: direction > 0 ? 0.9 : 1.1,
+    filter: "blur(10px)",
+  }),
+  animate: {
+    opacity: 1,
+    scale: 1,
+    filter: "blur(0px)",
+  },
+  exit: (direction: number) => ({
+    opacity: 0,
+    scale: direction > 0 ? 1.1 : 0.9,
+    filter: "blur(10px)",
+    position: "absolute" as const,
+  }),
+};
+
+const depthTransition = {
+  type: "spring" as const,
+  stiffness: 250,
+  damping: 25,
+};
+
+// ─── Component ──────────────────────────────────────────────────
 
 export function InteractiveCalendar() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  const selectedDateStr = searchParams.get("date");
-  const selectedDate = selectedDateStr ? new Date(selectedDateStr) : null;
+  // ─── Active date: URL is source of truth, fallback to today ──
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const urlDateParam = searchParams.get("date");
+  const activeDateString = urlDateParam || todayStr;
+  const isShowingToday = activeDateString === todayStr;
 
-  // Determine active filter from route
+  // ─── Month navigation (local, visual only) ───────────────────
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    return new Date(activeDateString + "T00:00:00");
+  });
+  const [direction, setDirection] = useState(0);
+
+  // Sync calendar month view when URL active date changes
+  useEffect(() => {
+    const activeDate = new Date(activeDateString + "T00:00:00");
+    if (!isSameMonth(activeDate, currentMonth)) {
+      setDirection(activeDate > currentMonth ? 1 : -1);
+      setCurrentMonth(activeDate);
+    }
+  }, [activeDateString]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Route-based dot filter ───────────────────────────────────
   const filterCategory = getCategoryFromPath(pathname);
-
-  // Get all event dates for dot rendering
   const eventDates = useMemo(
     () => getAllEventDates(filterCategory),
     [filterCategory]
   );
 
-  // Generate calendar grid
+  // ─── Calendar grid ────────────────────────────────────────────
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 }); // Monday start
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  const monthKey = format(currentMonth, "yyyy-MM");
+
+  // ─── Handlers ─────────────────────────────────────────────────
+
+  const goNextMonth = () => {
+    setDirection(1);
+    setCurrentMonth((m) => addMonths(m, 1));
+  };
+
+  const goPrevMonth = () => {
+    setDirection(-1);
+    setCurrentMonth((m) => subMonths(m, 1));
+  };
+
+  const jumpToToday = () => {
+    const today = new Date();
+    if (!isSameMonth(currentMonth, today)) {
+      setDirection(today > currentMonth ? 1 : -1);
+      setCurrentMonth(today);
+    }
+    // Strip ?date= param — calendar will reactively fallback to todayStr
+    router.push(pathname, { scroll: false });
+  };
 
   const handleDateClick = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-
-    // Toggle: click same date again to deselect
-    if (selectedDateStr === dateStr) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("date");
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    // If clicking the currently active date, deselect (go back to today)
+    if (dateStr === activeDateString) {
+      router.push(pathname, { scroll: false });
     } else {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("date", dateStr);
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      router.push(`${pathname}?date=${dateStr}`, { scroll: false });
     }
   };
 
-  const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const weekDays = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay: 0.1 }}
-      className="rounded-2xl border border-border bg-card p-4"
+    <div
+      className="relative rounded-2xl border border-zinc-800/80 backdrop-blur-xl overflow-hidden"
+      style={{
+        background:
+          "radial-gradient(ellipse 80% 60% at 50% 120%, rgba(139,92,246,0.04) 0%, transparent 60%), rgba(24,24,27,0.3)",
+      }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-accent" />
-          <h2 className="text-sm font-semibold text-foreground">
-            {format(currentMonth, "MMMM yyyy")}
-          </h2>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-            className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-          >
-            <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
-          </button>
-          <button
-            onClick={() => setCurrentMonth(new Date())}
-            className="px-2 py-1 rounded-lg text-[10px] font-medium text-muted-foreground hover:bg-muted transition-colors"
-          >
-            Today
-          </button>
-          <button
-            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-            className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-          >
-            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-          </button>
-        </div>
-      </div>
-
-      {/* Context indicator */}
-      {filterCategory && (
-        <div className="mb-3 px-2 py-1.5 rounded-lg bg-accent/5 border border-accent/10 text-[10px] text-accent font-medium">
-          Showing: {filterCategory} events
-        </div>
-      )}
-
-      {/* Week day headers */}
-      <div className="grid grid-cols-7 mb-1">
-        {weekDays.map((day) => (
-          <div
-            key={day}
-            className="text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider py-1"
-          >
-            {day}
+      <div className="p-4">
+        {/* ─── Header ────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-3.5 h-3.5 text-violet-400/80" />
+            <h2 className="text-[13px] font-semibold text-zinc-200 tracking-tight">
+              {format(currentMonth, "MMMM yyyy")}
+            </h2>
           </div>
-        ))}
-      </div>
-
-      {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-0.5">
-        {days.map((day) => {
-          const dateStr = format(day, "yyyy-MM-dd");
-          const inMonth = isSameMonth(day, currentMonth);
-          const today = isToday(day);
-          const selected = selectedDate ? isSameDay(day, selectedDate) : false;
-          const hasEvent = eventDates.has(dateStr);
-
-          return (
+          <div className="flex items-center gap-0.5">
             <button
-              key={dateStr}
-              onClick={() => handleDateClick(day)}
-              className={`
-                relative flex flex-col items-center justify-center py-1.5 rounded-lg text-[11px] transition-all
-                ${!inMonth ? "text-muted-foreground/30" : "text-foreground"}
-                ${today && !selected ? "bg-accent/10 text-accent font-bold" : ""}
-                ${selected ? "bg-accent text-accent-foreground font-bold shadow-lg shadow-accent/20" : ""}
-                ${inMonth && !today && !selected ? "hover:bg-muted" : ""}
-              `}
+              onClick={goPrevMonth}
+              className="p-1.5 rounded-lg hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors"
             >
-              <span>{format(day, "d")}</span>
-              {/* Event dot */}
-              {hasEvent && inMonth && (
-                <span
-                  className={`absolute bottom-0.5 w-1 h-1 rounded-full ${
-                    selected ? "bg-accent-foreground/70" : "bg-accent"
-                  }`}
-                  style={
-                    !selected
-                      ? { boxShadow: "0 0 4px rgba(129, 140, 248, 0.6)" }
-                      : undefined
-                  }
-                />
-              )}
+              <ChevronLeft className="w-3.5 h-3.5 text-zinc-500" />
             </button>
-          );
-        })}
-      </div>
+            <button
+              onClick={jumpToToday}
+              className="px-2 py-1 rounded-lg text-[10px] font-medium text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300 transition-colors"
+            >
+              Today
+            </button>
+            <button
+              onClick={goNextMonth}
+              className="p-1.5 rounded-lg hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors"
+            >
+              <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+            </button>
+          </div>
+        </div>
 
-      {/* Selected date events */}
-      {selectedDate && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          className="mt-3 pt-3 border-t border-border space-y-1.5"
-        >
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            {format(selectedDate, "EEEE, MMM d")}
-          </p>
-          {calendarEvents
-            .filter((e) => e.date === selectedDateStr)
-            .map((event) => (
-              <div
-                key={event.id}
-                className={`px-2.5 py-1.5 rounded-lg border text-[11px] ${event.color}`}
-              >
-                <span className="font-medium">{event.title}</span>
-                <span className="ml-2 opacity-70">{event.time}</span>
+        {/* ─── Route context indicator ───────────────────────── */}
+        {filterCategory && (
+          <div className="mb-3 px-2.5 py-1.5 rounded-lg bg-violet-500/[0.06] border border-violet-500/10 text-[10px] text-violet-400/90 font-medium">
+            Showing: {filterCategory}
+          </div>
+        )}
+
+        {/* ─── Weekday headers ───────────────────────────────── */}
+        <div className="grid grid-cols-7 mb-1.5">
+          {weekDays.map((day) => (
+            <div
+              key={day}
+              className="text-center text-[9px] font-semibold text-zinc-600 uppercase tracking-widest py-1"
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* ─── Z-Axis Depth Morph Grid ───────────────────────── */}
+        <div className="relative overflow-hidden rounded-xl">
+          <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+            <motion.div
+              key={monthKey}
+              custom={direction}
+              variants={depthVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={depthTransition}
+              className="grid grid-cols-7 gap-px p-0.5"
+            >
+              {days.map((day) => {
+                const dateStr = format(day, "yyyy-MM-dd");
+                const inMonth = isSameMonth(day, currentMonth);
+                const today = isToday(day);
+                const hasEvent = eventDates.has(dateStr);
+
+                // ── KEY FIX: derive selection strictly from URL-synced activeDateString
+                const isSelected = dateStr === activeDateString;
+
+                return (
+                  <button
+                    key={dateStr}
+                    onClick={() => handleDateClick(day)}
+                    className={`
+                      relative flex flex-col items-center justify-center py-[7px] rounded-md text-[11px] transition-all duration-150
+                      ${
+                        !inMonth
+                          ? "text-zinc-700/50 pointer-events-none"
+                          : "text-zinc-200 hover:bg-white/[0.05] active:bg-white/[0.08]"
+                      }
+                      ${
+                        isSelected
+                          ? "bg-violet-600 text-white font-bold shadow-[0_0_12px_rgba(139,92,246,0.35)] ring-1 ring-violet-400/50"
+                          : ""
+                      }
+                      ${
+                        today && !isSelected
+                          ? "ring-1 ring-violet-500/60 text-violet-300 font-semibold"
+                          : ""
+                      }
+                    `}
+                  >
+                    <span>{format(day, "d")}</span>
+                    {hasEvent && inMonth && (
+                      <span
+                        className={`absolute bottom-[3px] size-[3px] rounded-full ${
+                          isSelected
+                            ? "bg-white/80"
+                            : "bg-violet-400 shadow-[0_0_5px_rgba(139,92,246,0.7)]"
+                        }`}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* ─── Selected date detail (only when viewing non-today) */}
+        <AnimatePresence>
+          {!isShowingToday && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="mt-3 pt-3 border-t border-white/[0.04] space-y-1.5 overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                  {format(new Date(activeDateString + "T00:00:00"), "EEEE, MMM d")}
+                </p>
+                <button
+                  onClick={jumpToToday}
+                  className="flex items-center gap-1 text-[10px] text-violet-400 hover:text-violet-300 transition-colors"
+                >
+                  <RotateCcw className="w-2.5 h-2.5" />
+                  Back to today
+                </button>
               </div>
-            ))}
-          {calendarEvents.filter((e) => e.date === selectedDateStr).length === 0 && (
-            <p className="text-[11px] text-muted-foreground/60 py-2">
-              No scheduled events
-            </p>
+              {calendarEvents
+                .filter((e) => e.date === activeDateString)
+                .map((event) => (
+                  <div
+                    key={event.id}
+                    className="px-2.5 py-1.5 rounded-lg border border-white/[0.04] bg-white/[0.02] text-[11px] text-zinc-300"
+                  >
+                    <span className="font-medium">{event.title}</span>
+                    <span className="ml-2 text-zinc-600">{event.time}</span>
+                  </div>
+                ))}
+              {calendarEvents.filter((e) => e.date === activeDateString)
+                .length === 0 && (
+                <p className="text-[11px] text-zinc-700 py-2">
+                  No scheduled events for this date
+                </p>
+              )}
+            </motion.div>
           )}
-        </motion.div>
-      )}
-    </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
   );
 }

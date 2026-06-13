@@ -20,6 +20,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNotices } from "@/lib/notices-context";
 import { useUser } from "@/lib/user-context";
 import { sendChatMessage } from "@/lib/api";
+import { sortEventsByTime } from "@/lib/sort-utils";
 import type { Notice, NoticeCategory, Urgency } from "@/lib/data";
 
 const categoryConfig: Record<
@@ -245,7 +246,8 @@ export function SectionFeed({
       result = result.filter((n) => n.date === dateFilter);
     }
 
-    return result;
+    // Sort chronologically (earliest first)
+    return sortEventsByTime(result);
   }, [notices, category, dateFilter]);
 
   return (
