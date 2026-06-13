@@ -11,7 +11,8 @@ import {
   Trophy,
   Info,
 } from "lucide-react";
-import { notices, type Notice, type NoticeCategory, type Urgency } from "@/lib/data";
+import { useNotices } from "@/lib/notices-context";
+import type { Notice, NoticeCategory, Urgency } from "@/lib/data";
 
 const categoryConfig: Record<
   NoticeCategory,
@@ -65,7 +66,7 @@ function NoticeCard({ notice, index }: { notice: Notice; index: number }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.08, ease: "easeOut" }}
+      transition={{ duration: 0.4, delay: index * 0.05, ease: "easeOut" }}
       className="group relative rounded-xl border border-border bg-card p-4 hover:border-accent/30 transition-all hover:shadow-lg hover:shadow-accent/5"
     >
       {/* Urgency indicator */}
@@ -123,6 +124,8 @@ function formatDate(dateStr: string): string {
 }
 
 export function LiveFeed() {
+  const { notices } = useNotices();
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between mb-1">

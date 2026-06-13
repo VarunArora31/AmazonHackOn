@@ -1,12 +1,13 @@
 {
-  "name": "backend",
+  "name": "campusflow-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "CampusFlow AI-powered campus notice parser backend",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "node --watch index.js"
   },
-  "keywords": [],
+  "keywords": ["campus", "ai", "groq", "parser"],
   "author": "",
   "license": "ISC",
   "type": "commonjs",

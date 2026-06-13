@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  Clock,
   Zap,
   MessageCircle,
   Send,
   Shield,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { hostelTimings } from "@/lib/data";
+import { useNotices } from "@/lib/notices-context";
+import { sendChatMessage } from "@/lib/api";
 
 function HostelTimingsCard() {
   return (
@@ -63,15 +65,31 @@ function HostelTimingsCard() {
 
 function SummarizeButton() {
   const [summarizing, setSummarizing] = useState(false);
-  const [done, setDone] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const { notices } = useNotices();
 
-  const handleSummarize = () => {
+  const handleSummarize = async () => {
     setSummarizing(true);
-    setTimeout(() => {
+    setSummary(null);
+
+    try {
+      const reply = await sendChatMessage(
+        "Summarize all current notices in 2-3 short bullet points. Focus on deadlines and urgent items.",
+        notices.slice(0, 10).map((n) => ({
+          title: n.title,
+          category: n.category,
+          summary: n.summary,
+          date: n.date,
+          time: n.time,
+        })),
+        []
+      );
+      setSummary(reply);
+    } catch {
+      setSummary("Could not generate summary. Make sure the backend is running.");
+    } finally {
       setSummarizing(false);
-      setDone(true);
-      setTimeout(() => setDone(false), 3000);
-    }, 1500);
+    }
   };
 
   return (
@@ -92,30 +110,26 @@ function SummarizeButton() {
         className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-accent/5 border border-accent/20 text-sm text-accent hover:bg-accent/10 transition-all disabled:opacity-50"
       >
         <div className="flex items-center gap-2">
-          <Zap className="w-3.5 h-3.5" />
+          {summarizing ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Zap className="w-3.5 h-3.5" />
+          )}
           <span className="font-medium">
-            {summarizing
-              ? "Summarizing..."
-              : done
-              ? "✓ Summary ready!"
-              : "Summarize unread notices"}
+            {summarizing ? "Summarizing..." : "Summarize unread notices"}
           </span>
         </div>
         <ChevronRight className="w-4 h-4" />
       </button>
 
-      {done && (
+      {summary && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           className="mt-3 p-3 rounded-lg bg-muted border border-border text-xs text-muted-foreground leading-relaxed"
         >
-          <p className="font-medium text-foreground mb-1">Today's Summary:</p>
-          <p>
-            3 new notices today. Microsoft placement registration closes June 15
-            (CGPA 7.5+). Dinner menu changed to Chole Bhature. Coding contest
-            tonight at 8 PM.
-          </p>
+          <p className="font-medium text-foreground mb-1">Summary:</p>
+          <p className="whitespace-pre-wrap">{summary}</p>
         </motion.div>
       )}
     </motion.div>
@@ -124,6 +138,7 @@ function SummarizeButton() {
 
 function MiniChat() {
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<
     { role: "user" | "ai"; text: string }[]
   >([
@@ -132,32 +147,51 @@ function MiniChat() {
       text: "Hey! Ask me anything about your campus schedule, notices, or events.",
     },
   ]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { notices } = useNotices();
 
-  const handleSend = () => {
-    if (!message.trim()) return;
-    const userMsg = message;
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!message.trim() || isLoading) return;
+    const userMsg = message.trim();
     setMessages((prev) => [...prev, { role: "user", text: userMsg }]);
     setMessage("");
+    setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      let response =
-        "I'll look that up for you. Based on recent notices, ";
-      if (userMsg.toLowerCase().includes("placement")) {
-        response =
-          "The Microsoft SDE Intern drive is scheduled for June 15 at 11 AM. Make sure you've registered on the placement portal by tonight!";
-      } else if (userMsg.toLowerCase().includes("mess") || userMsg.toLowerCase().includes("dinner")) {
-        response =
-          "Tonight's dinner is Chole Bhature (changed from Paneer Butter Masala). Mess timing is 7:30 - 9:30 PM.";
-      } else if (userMsg.toLowerCase().includes("exam")) {
-        response =
-          "End-sem exams start June 25. Your first exam is Data Structures on June 26 at 9 AM.";
-      } else {
-        response +=
-          "I don't have specific info on that yet. Try pasting the relevant notice in the Omni-Bar above!";
-      }
-      setMessages((prev) => [...prev, { role: "ai", text: response }]);
-    }, 1000);
+    try {
+      // Build history for context (convert to the format the backend expects)
+      const history = messages.slice(-6).map((m) => ({
+        role: m.role === "ai" ? "assistant" : "user",
+        content: m.text,
+      }));
+
+      const reply = await sendChatMessage(
+        userMsg,
+        notices.slice(0, 10).map((n) => ({
+          title: n.title,
+          category: n.category,
+          summary: n.summary,
+          date: n.date,
+          time: n.time,
+        })),
+        history
+      );
+
+      setMessages((prev) => [...prev, { role: "ai", text: reply }]);
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          text: `Error: ${err.message || "Could not reach AI. Is the backend running on port 5000?"}`,
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -186,6 +220,13 @@ function MiniChat() {
             {msg.text}
           </div>
         ))}
+        {isLoading && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground px-3 py-2">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Thinking...
+          </div>
+        )}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
@@ -196,11 +237,12 @@ function MiniChat() {
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="What time is the placement drive?"
-          className="flex-1 text-xs px-3 py-2 rounded-lg bg-muted border border-border text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-accent/50"
+          disabled={isLoading}
+          className="flex-1 text-xs px-3 py-2 rounded-lg bg-muted border border-border text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-accent/50 disabled:opacity-50"
         />
         <button
           onClick={handleSend}
-          disabled={!message.trim()}
+          disabled={!message.trim() || isLoading}
           className="p-2 rounded-lg bg-accent text-accent-foreground hover:opacity-90 transition-opacity disabled:opacity-30"
         >
           <Send className="w-3.5 h-3.5" />
