@@ -17,11 +17,11 @@ An AI-powered unified campus assistant that ingests messy, unstructured data (li
 ## How to Run Locally
 
 ### 1. Start the Backend
-cd backend
-npm install
-node index.js (or npm start)
+- cd backend
+- npm install
+- node index.js (or npm start)
 
 ### 2. Start the Frontend
-cd frontend
-npm install
-npm run dev
+- cd frontend
+- npm install
+- npm run dev
