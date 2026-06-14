@@ -28,6 +28,10 @@ import { useCommandPalette } from "@/lib/command-palette-context";
 import { sortEventsByTime } from "@/lib/sort-utils";
 import { useVimNavigation } from "@/hooks/useVimNavigation";
 import { AiScheduleOptimizer } from "@/components/AiScheduleOptimizer";
+import { ConflictResolver } from "@/components/ConflictResolver";
+import { BurnoutPredictor } from "@/components/BurnoutPredictor";
+import { WhatIfSimulator } from "@/components/WhatIfSimulator";
+import { ExplainableSchedule } from "@/components/ExplainableSchedule";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -543,6 +547,46 @@ export default function PersonalPage() {
             </button>
             <AiScheduleOptimizer />
           </div>
+        </motion.section>
+
+        {/* ─── AI Conflict Resolver ──────────────────────────── */}
+        <motion.section
+          layout
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.08 }}
+        >
+          <ConflictResolver />
+        </motion.section>
+
+        {/* ─── Burnout Prediction ────────────────────────────── */}
+        <motion.section
+          layout
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.09 }}
+        >
+          <BurnoutPredictor />
+        </motion.section>
+
+        {/* ─── What-If Simulator ─────────────────────────────── */}
+        <motion.section
+          layout
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.095 }}
+        >
+          <WhatIfSimulator />
+        </motion.section>
+
+        {/* ─── Explainable AI Schedule ───────────────────────── */}
+        <motion.section
+          layout
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.1 }}
+        >
+          <ExplainableSchedule />
         </motion.section>
 
         {/* ─── Today Timeline ────────────────────────────────── */}

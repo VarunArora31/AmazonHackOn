@@ -157,6 +157,10 @@ export const calendarEvents: CalendarEvent[] = [
   { id: "c6", title: "TechFest Rehearsal", time: "17:00 - 19:00", date: "2026-06-16", type: "meeting", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
   { id: "c7", title: "Cricket Finals", time: "16:00 - 18:00", date: "2026-06-15", type: "event", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
   { id: "c8", title: "Computer Networks Lecture", time: "11:00 - 12:30", date: "2026-06-16", type: "class", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  { id: "c9", title: "Football Practice", time: "09:30 - 11:00", date: "2026-06-14", type: "event", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+  { id: "c10", title: "Placement Workshop", time: "14:30 - 16:30", date: "2026-06-14", type: "event", color: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+  { id: "c11", title: "Club Meeting", time: "11:30 - 13:00", date: "2026-06-15", type: "meeting", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+  { id: "c12", title: "Basketball Tryouts", time: "17:30 - 19:00", date: "2026-06-16", type: "event", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
 ];
 
 // ─── Hostel Timings ─────────────────────────────────────────────
