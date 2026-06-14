@@ -36,14 +36,14 @@ const categoryConfig: Record<
   Placement: { icon: Briefcase, color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
   "Club Event": { icon: Users, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
   Sports: { icon: Trophy, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-  General: { icon: Info, color: "text-gray-400", bg: "bg-gray-500/10 border-gray-500/20" },
+  General: { icon: Info, color: "text-neutral-400", bg: "bg-neutral-100 border-neutral-200" },
 };
 
 const urgencyConfig: Record<Urgency, { dot: string; label: string }> = {
   critical: { dot: "bg-red-500 animate-pulse", label: "Urgent" },
   high: { dot: "bg-orange-500", label: "Important" },
   normal: { dot: "bg-blue-500", label: "" },
-  low: { dot: "bg-gray-400", label: "" },
+  low: { dot: "bg-neutral-400", label: "" },
 };
 
 function formatDateLabel(dateStr: string): string {
@@ -126,13 +126,13 @@ function TimelineCard({
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       className={`group relative flex items-start gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
         isFocused
-          ? "border-violet-500/50 bg-violet-500/[0.04] ring-1 ring-violet-500/40 shadow-[0_0_20px_rgba(139,92,246,0.1)] scale-[1.01]"
+          ? "border-neutral-400 bg-neutral-100 ring-1 ring-neutral-400 shadow-md scale-[1.01]"
           : "border-border bg-card card-glow"
       }`}
     >
       {/* Vim focus indicator */}
       {isFocused && (
-        <div className="absolute -left-px top-3 bottom-3 w-[2px] rounded-full bg-violet-500" />
+        <div className="absolute -left-px top-3 bottom-3 w-[2px] rounded-full bg-neutral-900" />
       )}
 
       {/* Left: Time column */}
@@ -371,7 +371,7 @@ export function UniversalTimeline({ events, title, emptyMessage = "No notices fo
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
           <div className="flex items-center gap-2">
             {isFocusActive && (
-              <span className="text-[9px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 font-medium border border-violet-500/20">
+              <span className="text-[9px] px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-700 font-medium border border-neutral-300">
                 Vim: {focusedIndex + 1}/{activeEvents.length}
               </span>
             )}
@@ -446,8 +446,8 @@ export function UniversalTimeline({ events, title, emptyMessage = "No notices fo
         {/* Vim nav hint (shown only when not active) */}
         {!isFocusActive && activeEvents.length > 0 && (
           <div className="text-center">
-            <p className="text-[10px] text-zinc-700">
-              Press <kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 font-mono text-[9px]">j</kbd>/<kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 font-mono text-[9px]">k</kbd> to navigate · <kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 font-mono text-[9px]">x</kbd> to archive · <kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 font-mono text-[9px]">/</kbd> to search
+            <p className="text-[10px] text-neutral-700">
+              Press <kbd className="px-1 py-0.5 rounded bg-neutral-200 border border-neutral-300 text-neutral-400 font-mono text-[9px]">j</kbd>/<kbd className="px-1 py-0.5 rounded bg-neutral-200 border border-neutral-300 text-neutral-400 font-mono text-[9px]">k</kbd> to navigate · <kbd className="px-1 py-0.5 rounded bg-neutral-200 border border-neutral-300 text-neutral-400 font-mono text-[9px]">x</kbd> to archive · <kbd className="px-1 py-0.5 rounded bg-neutral-200 border border-neutral-300 text-neutral-400 font-mono text-[9px]">/</kbd> to search
             </p>
           </div>
         )}

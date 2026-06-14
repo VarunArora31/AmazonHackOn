@@ -7,13 +7,12 @@ import {
   Sun,
   Moon,
   ArrowRightLeft,
-  Sparkles,
-  Search,
-  Command as CommandIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { useUser } from "@/lib/user-context";
 import { CommandPalette } from "./command-palette";
+import { CalendarPopover } from "./CalendarPopover";
+import { ProfilePopover } from "./ProfilePopover";
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "All Notices",
@@ -33,8 +32,12 @@ export function DashboardHeader() {
   const pageTitle = routeTitles[pathname] || "Dashboard";
 
   const toggleTheme = () => {
-    setIsDark(!isDark);
+    document.documentElement.classList.add("transitioning");
     document.documentElement.classList.toggle("dark");
+    setIsDark(!isDark);
+    setTimeout(() => {
+      document.documentElement.classList.remove("transitioning");
+    }, 120);
   };
 
   const handleRoleSwitch = () => {
@@ -67,6 +70,9 @@ export function DashboardHeader() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Calendar Popover */}
+          <CalendarPopover />
+
           <button
             onClick={handleRoleSwitch}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-muted-foreground hover:bg-muted transition-colors border border-transparent hover:border-border"
@@ -91,8 +97,8 @@ export function DashboardHeader() {
             )}
           </button>
 
-          <div className="ml-1.5 w-8 h-8 rounded-full bg-gradient-to-br from-accent to-purple-500 flex items-center justify-center text-[11px] font-bold text-white ring-2 ring-card">
-            {user.name.charAt(0)}
+          <div className="ml-1.5">
+            <ProfilePopover />
           </div>
         </div>
       </div>

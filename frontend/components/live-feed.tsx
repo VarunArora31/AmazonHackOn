@@ -49,8 +49,8 @@ const categoryConfig: Record<
   },
   General: {
     icon: Info,
-    color: "text-gray-400",
-    bg: "bg-gray-500/10 border-gray-500/20",
+    color: "text-neutral-400",
+    bg: "bg-neutral-100 border-neutral-200",
   },
 };
 
@@ -58,7 +58,7 @@ const urgencyConfig: Record<Urgency, { dot: string; label: string }> = {
   critical: { dot: "bg-red-500 animate-pulse", label: "Urgent" },
   high: { dot: "bg-orange-500", label: "Important" },
   normal: { dot: "bg-blue-500", label: "" },
-  low: { dot: "bg-gray-400", label: "" },
+  low: { dot: "bg-neutral-400", label: "" },
 };
 
 const filterOptions: (NoticeCategory | "All")[] = [

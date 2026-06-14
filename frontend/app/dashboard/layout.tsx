@@ -6,7 +6,7 @@ import { NoticesProvider } from "@/lib/notices-context";
 import { CommandPaletteProvider } from "@/lib/command-palette-context";
 import { GlobalSidebar } from "@/components/GlobalSidebar";
 import { DashboardHeader } from "@/components/DashboardHeader";
-import { InteractiveCalendar } from "@/components/InteractiveCalendar";
+import { SidebarChat } from "@/components/SidebarChat";
 import { AddAnnouncementCTA } from "@/components/AddAnnouncementCTA";
 import { CommandPaletteDialog } from "@/components/command-palette";
 
@@ -25,24 +25,19 @@ export default function DashboardLayout({
 
             {/* Center: Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Top: Persistent Header with Omni-bar */}
+              {/* Top: Persistent Header with Omni-bar + Calendar Popover */}
               <DashboardHeader />
 
               {/* Content Area */}
               <div className="flex-1 flex overflow-hidden">
-                {/* Feed (children routes render here) */}
                 <main className="flex-1 overflow-y-auto px-6 py-5">
                   <Suspense fallback={<FeedSkeleton />}>
                     {children}
                   </Suspense>
                 </main>
 
-                {/* Right: Calendar Sidebar */}
-                <aside className="hidden xl:block w-[280px] border-l border-border/50 overflow-y-auto px-4 py-5 shrink-0">
-                  <Suspense fallback={null}>
-                    <InteractiveCalendar />
-                  </Suspense>
-                </aside>
+                {/* Right: AI Chat Sidebar */}
+                <SidebarChat />
               </div>
             </div>
 

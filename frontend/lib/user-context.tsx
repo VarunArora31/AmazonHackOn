@@ -6,7 +6,7 @@ import type { UserPayload } from "./types";
 // Default demo user — student
 const defaultUser: UserPayload = {
   role: "STUDENT",
-  name: "Arjun",
+  name: "Varun",
   branch: "CSE",
   year: 3,
   hostel: "Hostel 4",

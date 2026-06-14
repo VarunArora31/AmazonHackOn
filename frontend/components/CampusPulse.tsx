@@ -37,25 +37,25 @@ const statusConfig: Record<
     color: "text-emerald-400",
     dotColor: "bg-emerald-500",
     label: "Low",
-    textHint: "text-stone-700 dark:text-zinc-200",
+    textHint: "text-neutral-700 dark:text-neutral-100",
   },
   MODERATE: {
     color: "text-amber-400",
     dotColor: "bg-amber-500",
     label: "Busy",
-    textHint: "text-stone-700 dark:text-zinc-200",
+    textHint: "text-neutral-700 dark:text-neutral-100",
   },
   PEAK: {
     color: "text-red-400",
     dotColor: "bg-red-500",
     label: "Peak",
-    textHint: "text-stone-700 dark:text-zinc-200",
+    textHint: "text-neutral-700 dark:text-neutral-100",
   },
   CLOSED: {
-    color: "text-zinc-600",
-    dotColor: "bg-zinc-600",
+    color: "text-neutral-600",
+    dotColor: "bg-neutral-400",
     label: "Closed",
-    textHint: "text-stone-500 dark:text-zinc-500",
+    textHint: "text-neutral-500 dark:text-neutral-500",
   },
 };
 
@@ -155,7 +155,16 @@ function AnimatedValue({ value }: { value: number }) {
 function FacilityPill({ facility }: { facility: Facility }) {
   const cfg = statusConfig[facility.status];
   const Icon = facility.icon;
-  const isRecent = Date.now() - facility.lastUpdated < 2500;
+  const [isRecent, setIsRecent] = useState(false);
+
+  // Track recent updates client-side only to avoid hydration mismatch
+  useEffect(() => {
+    if (Date.now() - facility.lastUpdated < 2500) {
+      setIsRecent(true);
+      const timer = setTimeout(() => setIsRecent(false), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [facility.lastUpdated]);
 
   return (
     <motion.div
@@ -164,8 +173,8 @@ function FacilityPill({ facility }: { facility: Facility }) {
       className={`
         relative flex items-center gap-3 rounded-full shrink-0
         px-4 py-2 border backdrop-blur-md
-        bg-stone-50 dark:bg-zinc-900/50 border-stone-200/60 dark:border-white/[0.05] shadow-sm dark:shadow-none
-        hover:border-stone-300 dark:hover:border-white/[0.1] hover:bg-stone-50 dark:hover:bg-zinc-900/70
+        bg-white dark:bg-[#111111] border-neutral-200/60 dark:border-white/[0.05] shadow-sm dark:shadow-none
+        hover:border-neutral-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-[#1a1a1a]
         transition-colors duration-300
       `}
     >
@@ -177,7 +186,7 @@ function FacilityPill({ facility }: { facility: Facility }) {
             animate={{ opacity: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1.5 }}
-            className="absolute inset-0 rounded-full bg-indigo-500/10 dark:bg-violet-500/10 pointer-events-none"
+            className="absolute inset-0 rounded-full bg-neutral-800/10 dark:bg-neutral-200/10 pointer-events-none"
           />
         )}
       </AnimatePresence>
@@ -200,11 +209,11 @@ function FacilityPill({ facility }: { facility: Facility }) {
           {facility.shortName}:
         </span>
         {facility.status === "CLOSED" ? (
-          <span className="text-xs text-stone-400 dark:text-zinc-600">Closed</span>
+          <span className="text-xs text-neutral-400 dark:text-neutral-600">Closed</span>
         ) : (
-          <span className="text-xs text-stone-600 dark:text-zinc-400 whitespace-nowrap">
+          <span className="text-xs text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
             <AnimatedValue value={facility.occupancy} />{" "}
-            <span className="text-stone-500 dark:text-zinc-500">{facility.metric}</span>
+            <span className="text-neutral-500 dark:text-neutral-500">{facility.metric}</span>
           </span>
         )}
       </div>
@@ -259,8 +268,8 @@ export function CampusPulse() {
     >
       {/* Header row */}
       <div className="flex items-center gap-2 mb-3">
-        <Activity className="w-3.5 h-3.5 text-stone-500 dark:text-zinc-500" />
-        <span className="text-[11px] font-medium text-stone-500 dark:text-zinc-500 uppercase tracking-wider">
+        <Activity className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-500" />
+        <span className="text-[11px] font-medium text-neutral-500 dark:text-neutral-500 uppercase tracking-wider">
           Campus Pulse
         </span>
         <div className="flex-1" />

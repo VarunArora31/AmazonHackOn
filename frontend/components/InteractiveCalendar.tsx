@@ -146,41 +146,41 @@ export function InteractiveCalendar() {
   const weekDays = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
   return (
-    <div className="relative rounded-2xl border border-stone-200/60 dark:border-zinc-800/80 bg-stone-50 dark:bg-transparent backdrop-blur-xl overflow-hidden shadow-sm dark:shadow-none">
-      <div className="p-4">
+    <div className="overflow-hidden">
+      <div className="p-1">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Calendar className="w-3.5 h-3.5 text-indigo-500 dark:text-violet-400" />
-            <h2 className="text-[13px] font-semibold text-stone-800 dark:text-zinc-200 tracking-tight">
+            <Calendar className="w-3.5 h-3.5 text-neutral-700 dark:text-neutral-300" />
+            <h2 className="text-[13px] font-semibold text-neutral-900 dark:text-neutral-100 tracking-tight">
               {format(currentMonth, "MMMM yyyy")}
             </h2>
           </div>
           <div className="flex items-center gap-0.5">
             <button
               onClick={goPrevMonth}
-              className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-white/[0.04] transition-colors"
+              className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-[#1a1a1a] transition-colors"
             >
-              <ChevronLeft className="w-3.5 h-3.5 text-stone-400 dark:text-zinc-500" />
+              <ChevronLeft className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500" />
             </button>
             <button
               onClick={jumpToToday}
-              className="px-2 py-1 rounded-lg text-[10px] font-medium text-stone-500 dark:text-zinc-500 hover:bg-stone-100 dark:hover:bg-white/[0.04] hover:text-stone-700 dark:hover:text-zinc-300 transition-colors"
+              className="px-2 py-1 rounded-lg text-[10px] font-medium text-neutral-500 dark:text-neutral-500 hover:bg-neutral-100 dark:hover:bg-[#1a1a1a] hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
             >
               Today
             </button>
             <button
               onClick={goNextMonth}
-              className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-white/[0.04] transition-colors"
+              className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-[#1a1a1a] transition-colors"
             >
-              <ChevronRight className="w-3.5 h-3.5 text-stone-400 dark:text-zinc-500" />
+              <ChevronRight className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500" />
             </button>
           </div>
         </div>
 
         {/* Route context */}
         {filterCategory && (
-          <div className="mb-3 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-violet-500/[0.06] border border-indigo-100 dark:border-violet-500/10 text-[10px] text-indigo-600 dark:text-violet-400 font-medium">
+          <div className="mb-3 px-2.5 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-200/[0.06] border border-neutral-200 dark:border-white/5 text-[10px] text-neutral-900 dark:text-neutral-300 font-medium">
             Showing: {filterCategory}
           </div>
         )}
@@ -190,7 +190,7 @@ export function InteractiveCalendar() {
           {weekDays.map((day) => (
             <div
               key={day}
-              className="text-center text-[9px] font-semibold text-stone-400 dark:text-zinc-600 uppercase tracking-widest py-1"
+              className="text-center text-[9px] font-semibold text-neutral-400 dark:text-neutral-600 uppercase tracking-widest py-1"
             >
               {day}
             </div>
@@ -222,20 +222,20 @@ export function InteractiveCalendar() {
                     key={dateStr}
                     onClick={() => handleDateClick(day)}
                     className={`
-                      relative flex flex-col items-center justify-center py-[7px] rounded-md text-[11px] transition-all duration-150
+                      relative flex flex-col items-center justify-center py-[7px] rounded-md text-[11px]
                       ${
                         !inMonth
-                          ? "text-stone-300 dark:text-zinc-700/50 pointer-events-none"
-                          : "text-stone-700 dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-white/[0.05]"
+                          ? "text-neutral-300 dark:text-neutral-700/50 pointer-events-none"
+                          : "text-neutral-700 dark:text-neutral-100"
                       }
                       ${
                         isSelected
-                          ? "bg-indigo-600 dark:bg-violet-600 text-white font-bold shadow-lg shadow-indigo-500/20 dark:shadow-violet-500/20 ring-1 ring-indigo-500/50 dark:ring-violet-400/50"
+                          ? "bg-neutral-900 dark:bg-[#1a1a1a] text-white dark:text-neutral-100 font-bold ring-1 ring-neutral-900/50 dark:ring-neutral-500"
                           : ""
                       }
                       ${
                         today && !isSelected
-                          ? "ring-2 ring-indigo-600 dark:ring-violet-500/60 text-indigo-600 dark:text-violet-300 font-semibold"
+                          ? "ring-2 ring-neutral-900 dark:ring-neutral-500 text-neutral-900 dark:text-neutral-100 font-semibold"
                           : ""
                       }
                     `}
@@ -245,8 +245,8 @@ export function InteractiveCalendar() {
                       <span
                         className={`absolute bottom-[3px] size-[3px] rounded-full ${
                           isSelected
-                            ? "bg-stone-50/80"
-                            : "bg-indigo-500 dark:bg-violet-400 shadow-[0_0_4px_rgba(99,102,241,0.6)] dark:shadow-[0_0_4px_rgba(139,92,246,0.6)]"
+                            ? "bg-white/80"
+                            : "bg-neutral-800 dark:bg-neutral-400 shadow-none dark:shadow-none"
                         }`}
                       />
                     )}
@@ -265,15 +265,15 @@ export function InteractiveCalendar() {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="mt-3 pt-3 border-t border-stone-200/60 dark:border-white/[0.04] space-y-1.5 overflow-hidden"
+              className="mt-3 pt-3 border-t border-neutral-200/60 dark:border-white/[0.04] space-y-1.5 overflow-hidden"
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-semibold text-stone-500 dark:text-zinc-500 uppercase tracking-wider">
+                <p className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-500 uppercase tracking-wider">
                   {format(new Date(activeDateString + "T00:00:00"), "EEEE, MMM d")}
                 </p>
                 <button
                   onClick={jumpToToday}
-                  className="flex items-center gap-1 text-[10px] text-indigo-500 dark:text-violet-400 hover:text-indigo-600 dark:hover:text-violet-300 transition-colors"
+                  className="flex items-center gap-1 text-[10px] text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
                 >
                   <RotateCcw className="w-2.5 h-2.5" />
                   Back to today
@@ -284,14 +284,14 @@ export function InteractiveCalendar() {
                 .map((event) => (
                   <div
                     key={event.id}
-                    className="px-2.5 py-1.5 rounded-lg border border-stone-200/60 dark:border-white/[0.04] bg-stone-50 dark:bg-zinc-900/40 text-[11px] text-stone-700 dark:text-zinc-300"
+                    className="px-2.5 py-1.5 rounded-lg border border-neutral-200/60 dark:border-white/[0.04] bg-white dark:bg-zinc-900/40 text-[11px] text-neutral-700 dark:text-neutral-300"
                   >
                     <span className="font-medium">{event.title}</span>
-                    <span className="ml-2 text-stone-400 dark:text-zinc-600">{event.time}</span>
+                    <span className="ml-2 text-neutral-400 dark:text-neutral-600">{event.time}</span>
                   </div>
                 ))}
               {calendarEvents.filter((e) => e.date === activeDateString).length === 0 && (
-                <p className="text-[11px] text-stone-400 dark:text-zinc-700 py-2">
+                <p className="text-[11px] text-neutral-400 dark:text-neutral-700 py-2">
                   No scheduled events
                 </p>
               )}
