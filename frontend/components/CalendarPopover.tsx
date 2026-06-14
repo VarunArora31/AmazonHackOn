@@ -66,7 +66,7 @@ function CalendarPopoverInner() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -8 }}
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute right-0 z-50 mt-2 w-[280px] bg-white border border-neutral-200 shadow-xl rounded-xl p-2 dark:bg-[#111111] dark:border-white/10 dark:shadow-2xl"
+            className="absolute right-0 sm:right-0 z-50 mt-2 w-[280px] max-w-[calc(100vw-2rem)] bg-white border border-neutral-200 shadow-xl rounded-xl p-2 dark:bg-[#111111] dark:border-white/10 dark:shadow-2xl"
           >
             <InteractiveCalendar />
           </motion.div>

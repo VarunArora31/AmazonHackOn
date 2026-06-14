@@ -33,13 +33,18 @@ export function NoticesProvider({ children }: { children: ReactNode }) {
       ...notice,
       source: notice.source || "official",
       authorRole: authorRole || notice.authorRole,
-      // Auto-tag category from admin role if not explicitly set
       category:
         notice.category ||
         (authorRole ? roleToCategoryMap[authorRole] : "General"),
     };
 
-    setNotices((prev) => [enrichedNotice, ...prev]);
+    setNotices((prev) => {
+      // Prevent duplicates by ID
+      if (prev.some((n) => n.id === enrichedNotice.id)) {
+        return prev;
+      }
+      return [enrichedNotice, ...prev];
+    });
   }, []);
 
   const deleteNotice = useCallback((id: string) => {

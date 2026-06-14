@@ -332,3 +332,8 @@ body {
 .dark [cmdk-empty] {
   color: #525252;
 }
+
+/* ─── Safe area for mobile nav ───────────────────────────────── */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import {
   Plus,
@@ -20,14 +20,15 @@ import {
   Target,
   ChevronDown,
   Sparkles,
+  X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useUser } from "@/lib/user-context";
 import { useNotices } from "@/lib/notices-context";
 import { useCommandPalette } from "@/lib/command-palette-context";
+import { useChat } from "@/lib/chat-context";
 import { sortEventsByTime } from "@/lib/sort-utils";
 import { useVimNavigation } from "@/hooks/useVimNavigation";
-import { AiScheduleOptimizer } from "@/components/AiScheduleOptimizer";
 import { ConflictResolver } from "@/components/ConflictResolver";
 import { BurnoutPredictor } from "@/components/BurnoutPredictor";
 import { WhatIfSimulator } from "@/components/WhatIfSimulator";
@@ -159,12 +160,14 @@ function TimelineNode({
   event,
   onToggleDone,
   onArchive,
+  onDelete,
   isFocused = false,
   timelineIndex = -1,
 }: {
   event: TimelineEvent;
   onToggleDone: (id: string) => void;
   onArchive: (id: string) => void;
+  onDelete?: (id: string) => void;
   isFocused?: boolean;
   timelineIndex?: number;
 }) {
@@ -234,7 +237,16 @@ function TimelineNode({
       </div>
 
       {/* Actions (hover reveal) */}
-      <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-0.5">
+        {isPersonal && !event.done && onDelete && (
+          <button
+            onClick={() => onDelete(event.id)}
+            className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 text-neutral-400 hover:text-red-500 transition-colors"
+            title="Delete task"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
         {isPersonal && event.done && (
           <div className="absolute top-3 right-3">
             <CircleCheck className="w-4 h-4 text-emerald-500" />
@@ -343,11 +355,37 @@ export default function PersonalPage() {
   const greeting = getGreeting();
   const GreetingIcon = greeting.icon;
 
+  // Track if component has mounted (to avoid hydration mismatch)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   // ─── LOCAL State: personal tasks + archive IDs ────────────
-  // Personal tasks are private to this student (not in global DB)
+  // Persist personal tasks in localStorage per user
   const [personalTasks, setPersonalTasks] = useState<TimelineEvent[]>(initialPersonalEvents);
   // Archive is LOCAL ONLY — never mutates the global database
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
+
+  // Load saved tasks from localStorage on mount (client-only)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("personal_tasks");
+      if (stored) {
+        setPersonalTasks(JSON.parse(stored));
+      }
+    } catch {}
+  }, []);
+
+  // Save personal tasks to localStorage whenever they change
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem("personal_tasks", JSON.stringify(personalTasks));
+    } catch {}
+  }, [personalTasks]);
   const [newTask, setNewTask] = useState("");
 
   // ─── PROPAGATION: Merge global official events + personal tasks ──
@@ -399,6 +437,10 @@ export default function PersonalPage() {
   const completedToday = todayPersonal.filter((e) => e.done).length;
   const totalTodayTasks = todayPersonal.length;
 
+  // Separate active vs completed for today
+  const todayActive = todayEvents.filter((e) => !e.done);
+  const todayCompleted = todayEvents.filter((e) => e.done);
+
   // ─── Handlers ─────────────────────────────────────────────
 
   const toggleDone = (id: string) => {
@@ -421,6 +463,10 @@ export default function PersonalPage() {
       next.delete(id);
       return next;
     });
+  };
+
+  const deleteTask = (id: string) => {
+    setPersonalTasks((prev) => prev.filter((e) => e.id !== id));
   };
 
   const addTask = () => {
@@ -455,6 +501,7 @@ export default function PersonalPage() {
 
   // ─── Vim Navigation ───────────────────────────────────────
   const { open: openSearch } = useCommandPalette();
+  const { isChatOpen } = useChat();
 
   // Combine today + tomorrow into a flat array for vim indexing
   const allVisibleEvents = useMemo(
@@ -492,7 +539,9 @@ export default function PersonalPage() {
 
   return (
     <LayoutGroup>
-      <div className="max-w-2xl space-y-6">
+      <div className={`relative pl-0 sm:pl-5 space-y-6 transition-all duration-300 ${isChatOpen ? "max-w-3xl" : "max-w-4xl mx-auto"}`}>
+        {/* Timeline spine line (desktop only) */}
+        <div className="hidden sm:block absolute left-0 top-0 bottom-0 w-px bg-neutral-200 dark:bg-white/10 transition-colors duration-[80ms]" />
         {/* ─── Briefing Hero ─────────────────────────────────── */}
         <motion.section
           layout
@@ -513,7 +562,7 @@ export default function PersonalPage() {
                 {greeting.text}, {user.name}
               </h2>
               <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-1">
-                {todayEvents.length} events · {completedToday}/{totalTodayTasks} tasks done
+                {mounted ? `${todayEvents.length} events · ${completedToday}/${totalTodayTasks} tasks done` : "\u00A0"}
               </p>
             </div>
             <ProgressRing completed={completedToday} total={totalTodayTasks} />
@@ -540,12 +589,11 @@ export default function PersonalPage() {
             <button
               onClick={addTask}
               disabled={!newTask.trim()}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-neutral-900 dark:bg-white text-white text-xs font-semibold transition-all hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-neutral-900 dark:bg-white text-white dark:text-black text-xs font-semibold transition-all hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <Plus className="w-3 h-3" />
               Add
             </button>
-            <AiScheduleOptimizer />
           </div>
         </motion.section>
 
@@ -589,7 +637,7 @@ export default function PersonalPage() {
           <ExplainableSchedule />
         </motion.section>
 
-        {/* ─── Today Timeline ────────────────────────────────── */}
+        {/* ─── Today Timeline (Active) ────────────────────────── */}
         <motion.section
           layout
           initial={{ opacity: 0 }}
@@ -602,20 +650,52 @@ export default function PersonalPage() {
               Today
             </h3>
             <div className="flex-1 h-px bg-neutral-200/60 dark:bg-[#1a1a1a]/60" />
-            <span className="text-[10px] text-neutral-400 dark:text-neutral-600">{todayEvents.length}</span>
+            <span className="text-[10px] text-neutral-400 dark:text-neutral-600">{todayActive.length} active</span>
           </div>
 
           <div className="timeline-line space-y-2">
             <AnimatePresence mode="popLayout">
-              {todayEvents.map((e, i) => (
-                <TimelineNode key={e.id} event={e} onToggleDone={toggleDone} onArchive={archiveEvent} isFocused={isFocusActive && focusedIndex === i} timelineIndex={i} />
+              {todayActive.map((e, i) => (
+                <TimelineNode key={e.id} event={e} onToggleDone={toggleDone} onArchive={archiveEvent} onDelete={e.type === "personal" ? deleteTask : undefined} isFocused={isFocusActive && focusedIndex === i} timelineIndex={i} />
               ))}
             </AnimatePresence>
-            {todayEvents.length === 0 && (
-              <p className="py-8 text-center text-sm text-neutral-400 dark:text-neutral-700">All clear for today 🎉</p>
+            {todayActive.length === 0 && (
+              <p className="py-6 text-center text-sm text-neutral-400 dark:text-neutral-700">All tasks done for today! 🎉</p>
             )}
           </div>
         </motion.section>
+
+        {/* ─── Completed Today ────────────────────────────────── */}
+        {todayCompleted.length > 0 && (
+          <motion.section layout initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="size-2 rounded-full bg-emerald-500" />
+              <h3 className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                Completed Today
+              </h3>
+              <div className="flex-1 h-px bg-neutral-200/60 dark:bg-[#1a1a1a]/60" />
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400">{todayCompleted.length}</span>
+            </div>
+            <div className="space-y-1.5">
+              <AnimatePresence mode="popLayout">
+                {todayCompleted.map((e) => (
+                  <motion.div
+                    key={e.id}
+                    layout
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 0.6, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg border border-neutral-200/50 dark:border-white/5 bg-neutral-50 dark:bg-[#0a0a0a]"
+                  >
+                    <CircleCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span className="text-xs text-neutral-500 dark:text-neutral-500 line-through flex-1 truncate">{e.title}</span>
+                    <span className="text-[10px] text-neutral-400 dark:text-neutral-600 font-mono">{e.timeLabel}</span>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </motion.section>
+        )}
 
         {/* ─── Tomorrow Timeline ─────────────────────────────── */}
         <motion.section

@@ -12,23 +12,21 @@ import {
 import { useState, useMemo } from "react";
 import { useUser } from "@/lib/user-context";
 import { useNotices } from "@/lib/notices-context";
-import { calendarEvents } from "@/lib/data";
 import { CommandPalette } from "./command-palette";
 
 function getContextualMessage(
-  notices: { title: string; urgency: string; category: string }[],
-  events: typeof calendarEvents
+  notices: { title: string; urgency: string; category: string; date?: string; time?: string }[]
 ): string {
   const hour = new Date().getHours();
-
-  // Find next upcoming event
   const today = new Date().toISOString().split("T")[0];
-  const todayEvents = events.filter((e) => e.date === today);
+
+  // Find today's events from notices
+  const todayNotices = notices.filter((n) => n.date === today);
 
   // Time-based contextual awareness
   if (hour >= 7 && hour < 10) {
-    const morningClass = todayEvents.find((e) => e.type === "class");
-    if (morningClass) return `First class soon: ${morningClass.title} at ${morningClass.time.split(" - ")[0]}`;
+    const morningClass = todayNotices.find((n) => n.category === "Academics");
+    if (morningClass) return `First class soon: ${morningClass.title}`;
     return "Good morning! No classes this morning.";
   }
 
@@ -57,7 +55,7 @@ export function DynamicHeader() {
   const { notices } = useNotices();
 
   const contextMessage = useMemo(
-    () => getContextualMessage(notices, calendarEvents),
+    () => getContextualMessage(notices),
     [notices]
   );
 

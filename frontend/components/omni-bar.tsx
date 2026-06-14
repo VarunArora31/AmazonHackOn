@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Send, Loader2, AlertTriangle, Check, Copy } from "lucide-react";
 import { parseNotice } from "@/lib/api";
@@ -44,10 +44,26 @@ export function OmniBar() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [parsedPreview, setParsedPreview] = useState<ParseResult | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { addNotice } = useNotices();
   const { user } = useUser();
 
-  const isAdmin = user.role !== "STUDENT";
+  // Only show for admins
+  useEffect(() => {
+    async function check() {
+      try {
+        const { getCurrentUser, isAdminEmail } = await import("@/lib/auth");
+        const u = await getCurrentUser();
+        if (u?.email && isAdminEmail(u.email)) {
+          setIsAdmin(true);
+        }
+      } catch {}
+    }
+    check();
+  }, []);
+
+  // Don't render for students
+  if (!isAdmin) return null;
 
   const handleParse = async () => {
     if (!input.trim()) return;

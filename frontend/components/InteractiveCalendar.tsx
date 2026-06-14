@@ -16,19 +16,35 @@ import {
   subMonths,
 } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar, RotateCcw } from "lucide-react";
-import { calendarEvents, notices } from "@/lib/data";
+import { useNotices } from "@/lib/notices-context";
 import { routeToCategoryMap, type DashboardSection } from "@/lib/types";
+
+// ─── Time Format Helper ─────────────────────────────────────────
+
+function formatTo12h(time: string): string {
+  // Handles "14:00", "09:30 - 10:30", "14:00 - 16:00"
+  const convert = (t: string): string => {
+    const match = t.trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return t.trim();
+    let h = parseInt(match[1]);
+    const m = match[2];
+    const period = h >= 12 ? "PM" : "AM";
+    const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    return `${displayH}:${m} ${period}`;
+  };
+
+  if (time.includes("-")) {
+    const parts = time.split("-");
+    return `${convert(parts[0])} - ${convert(parts[1])}`;
+  }
+  return convert(time);
+}
 
 // ─── Helpers ────────────────────────────────────────────────────
 
-function getAllEventDates(filterCategory?: string): Set<string> {
+function getAllEventDates(noticesList: Array<{ date: string; category: string }>, filterCategory?: string): Set<string> {
   const dates = new Set<string>();
-  calendarEvents.forEach((event) => {
-    if (!filterCategory || event.type === "event" || event.type === "class") {
-      dates.add(event.date);
-    }
-  });
-  notices.forEach((notice) => {
+  noticesList.forEach((notice) => {
     if (!filterCategory || notice.category === filterCategory) {
       dates.add(notice.date);
     }
@@ -99,11 +115,12 @@ export function InteractiveCalendar() {
     }
   }, [activeDateString]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Route-based dot filter
+  // Route-based dot filter — uses real notices from context
+  const { notices: contextNotices } = useNotices();
   const filterCategory = getCategoryFromPath(pathname);
   const eventDates = useMemo(
-    () => getAllEventDates(filterCategory),
-    [filterCategory]
+    () => getAllEventDates(contextNotices, filterCategory),
+    [contextNotices, filterCategory]
   );
 
   // Calendar grid
@@ -257,20 +274,19 @@ export function InteractiveCalendar() {
           </AnimatePresence>
         </div>
 
-        {/* Selected date detail */}
-        <AnimatePresence>
-          {!isShowingToday && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="mt-3 pt-3 border-t border-neutral-200/60 dark:border-white/[0.04] space-y-1.5 overflow-hidden"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-500 uppercase tracking-wider">
-                  {format(new Date(activeDateString + "T00:00:00"), "EEEE, MMM d")}
-                </p>
+        {/* Selected date detail — always show (including today) */}
+        {contextNotices.filter((e) => e.date === activeDateString).length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="mt-3 pt-3 border-t border-neutral-200/60 dark:border-white/[0.04] space-y-1.5 overflow-hidden"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-500 uppercase tracking-wider">
+                {format(new Date(activeDateString + "T00:00:00"), "EEEE, MMM d")}
+              </p>
+              {!isShowingToday && (
                 <button
                   onClick={jumpToToday}
                   className="flex items-center gap-1 text-[10px] text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
@@ -278,26 +294,29 @@ export function InteractiveCalendar() {
                   <RotateCcw className="w-2.5 h-2.5" />
                   Back to today
                 </button>
-              </div>
-              {calendarEvents
-                .filter((e) => e.date === activeDateString)
-                .map((event) => (
-                  <div
-                    key={event.id}
-                    className="px-2.5 py-1.5 rounded-lg border border-neutral-200/60 dark:border-white/[0.04] bg-white dark:bg-zinc-900/40 text-[11px] text-neutral-700 dark:text-neutral-300"
-                  >
-                    <span className="font-medium">{event.title}</span>
-                    <span className="ml-2 text-neutral-400 dark:text-neutral-600">{event.time}</span>
-                  </div>
-                ))}
-              {calendarEvents.filter((e) => e.date === activeDateString).length === 0 && (
-                <p className="text-[11px] text-neutral-400 dark:text-neutral-700 py-2">
-                  No scheduled events
-                </p>
               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+            {contextNotices
+              .filter((e) => e.date === activeDateString)
+              .sort((a, b) => {
+                const getStart = (t: string) => {
+                  const part = t.split("-")[0].trim();
+                  const m = part.match(/^(\d{1,2}):(\d{2})/);
+                  return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : 0;
+                };
+                return getStart(a.time) - getStart(b.time);
+              })
+              .map((event) => (
+                <div
+                  key={event.id}
+                  className="px-2.5 py-1.5 rounded-lg border border-neutral-200/60 dark:border-white/[0.04] bg-white dark:bg-zinc-900/40 text-[11px] text-neutral-700 dark:text-neutral-300"
+                >
+                  <span className="font-medium">{event.title}</span>
+                  <span className="ml-2 text-neutral-400 dark:text-neutral-600">{formatTo12h(event.time)}</span>
+                </div>
+              ))}
+          </motion.div>
+        )}
       </div>
     </div>
   );

@@ -28,9 +28,28 @@ interface MenuItem {
 export function ProfilePopover() {
   const [isOpen, setIsOpen] = useState(false);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [authUser, setAuthUser] = useState<{ name: string; email: string; avatar?: string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { user } = useUser();
   const router = useRouter();
+
+  // Fetch real user data from Supabase auth
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const { getCurrentUser } = await import("@/lib/auth");
+        const u = await getCurrentUser();
+        if (u) {
+          setAuthUser({
+            name: u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split("@")[0] || "User",
+            email: u.email || "",
+            avatar: u.user_metadata?.avatar_url || undefined,
+          });
+        }
+      } catch {}
+    }
+    loadUser();
+  }, []);
 
   // Click-outside to close
   useEffect(() => {
@@ -98,12 +117,10 @@ export function ProfilePopover() {
 
   const integrationItems: MenuItem[] = [
     { icon: Smartphone, label: "WhatsApp Integration", onClick: handleWhatsAppSetup },
-    { icon: Key, label: "API Keys" },
-    { icon: Sparkles, label: "AI Preferences" },
   ];
 
   const accountItems: MenuItem[] = [
-    { icon: HelpCircle, label: "Help & Support", shortcut: "?" },
+    { icon: HelpCircle, label: "Forgot Password", onClick: () => { setIsOpen(false); router.push("/auth"); } },
     { icon: LogOut, label: "Log Out", danger: true, onClick: handleLogout },
   ];
 
@@ -113,9 +130,13 @@ export function ProfilePopover() {
         {/* Trigger: Avatar */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="w-8 h-8 rounded-full bg-gradient-to-br from-neutral-700 to-neutral-900 dark:from-neutral-200 dark:to-neutral-400 flex items-center justify-center text-[11px] font-bold text-white dark:text-black ring-2 ring-transparent focus:ring-neutral-200 dark:focus:ring-white/20 transition-all"
+          className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-neutral-700 to-neutral-900 dark:from-neutral-200 dark:to-neutral-400 flex items-center justify-center text-[11px] font-bold text-white dark:text-black ring-2 ring-transparent focus:ring-neutral-200 dark:focus:ring-white/20 transition-all"
         >
-          {user.name.charAt(0)}
+          {authUser?.avatar ? (
+            <img src={authUser.avatar} alt="" className="w-full h-full object-cover" />
+          ) : (
+            (authUser?.name || user.name).charAt(0).toUpperCase()
+          )}
         </button>
 
       {/* Popover */}
@@ -126,25 +147,26 @@ export function ProfilePopover() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -4 }}
             transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute right-0 mt-2 w-72 z-50 bg-white border border-neutral-200 shadow-xl rounded-xl dark:bg-[#111111] dark:border-white/10 dark:shadow-2xl overflow-hidden"
+            className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] z-50 bg-white border border-neutral-200 shadow-xl rounded-xl dark:bg-[#111111] dark:border-white/10 dark:shadow-2xl overflow-hidden"
           >
             {/* Section 1: Identity Block */}
             <div className="px-4 pt-4 pb-3 border-b border-neutral-100 dark:border-white/10">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-neutral-700 to-neutral-900 dark:from-neutral-200 dark:to-neutral-400 flex items-center justify-center text-xs font-bold text-white dark:text-black shrink-0">
-                  {user.name.charAt(0)}
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-neutral-700 to-neutral-900 dark:from-neutral-200 dark:to-neutral-400 flex items-center justify-center text-xs font-bold text-white dark:text-black shrink-0">
+                  {authUser?.avatar ? (
+                    <img src={authUser.avatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    (authUser?.name || user.name).charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
-                      {user.name} {user.role === "STUDENT" ? "Arora" : ""}
-                    </span>
-                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-white/10 text-neutral-500 dark:text-neutral-400 shrink-0">
-                      Beta
+                      {authUser?.name || user.name}
                     </span>
                   </div>
                   <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
-                    varunaroransr@gmail.com
+                    {authUser?.email || "Not signed in"}
                   </p>
                 </div>
               </div>

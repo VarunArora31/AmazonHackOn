@@ -11,16 +11,18 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { calendarEvents, type CalendarEvent } from "@/lib/data";
+import { useNotices } from "@/lib/notices-context";
 
-const typeIcons: Record<CalendarEvent["type"], React.ElementType> = {
+type EventType = "class" | "event" | "deadline" | "meeting";
+
+const typeIcons: Record<EventType, React.ElementType> = {
   class: BookOpen,
   event: Users2,
   deadline: Flag,
   meeting: Clock,
 };
 
-const typeColors: Record<CalendarEvent["type"], string> = {
+const typeColors: Record<EventType, string> = {
   class: "bg-blue-500/15 text-blue-400 border-blue-500/25",
   event: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
   deadline: "bg-red-500/15 text-red-400 border-red-500/25",
@@ -47,8 +49,26 @@ export function HorizontalTimeline() {
   const days = getNext7Days();
   const [selectedDay, setSelectedDay] = useState(days[0].date);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { notices } = useNotices();
 
-  const dayEvents = calendarEvents.filter((e) => e.date === selectedDay);
+  // Map notices to timeline events for the selected day
+  const dayEvents = notices
+    .filter((n) => n.date === selectedDay)
+    .map((n) => {
+      // Determine event type from category
+      let type: EventType = "event";
+      if (n.category === "Academics") type = "class";
+      else if (n.title.toLowerCase().includes("deadline") || n.title.toLowerCase().includes("due")) type = "deadline";
+      else if (n.title.toLowerCase().includes("meeting") || n.title.toLowerCase().includes("discussion")) type = "meeting";
+      else if (n.category === "Club Event" || n.category === "Sports") type = "event";
+
+      return {
+        id: n.id,
+        title: n.title,
+        time: n.time,
+        type,
+      };
+    });
 
   const scroll = (dir: "left" | "right") => {
     if (scrollRef.current) {

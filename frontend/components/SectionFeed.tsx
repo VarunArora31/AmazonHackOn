@@ -21,6 +21,7 @@ import { useNotices } from "@/lib/notices-context";
 import { useUser } from "@/lib/user-context";
 import { sendChatMessage } from "@/lib/api";
 import { sortEventsByTime } from "@/lib/sort-utils";
+import { useChat } from "@/lib/chat-context";
 import type { Notice, NoticeCategory, Urgency } from "@/lib/data";
 
 const categoryConfig: Record<
@@ -230,6 +231,7 @@ export function SectionFeed({
   showChat = true,
 }: SectionFeedProps) {
   const { notices } = useNotices();
+  const { isChatOpen } = useChat();
   const searchParams = useSearchParams();
   const dateFilter = searchParams.get("date");
 
@@ -251,7 +253,9 @@ export function SectionFeed({
   }, [notices, category, dateFilter]);
 
   return (
-    <div className="max-w-2xl">
+    <div className={`relative pl-0 sm:pl-5 transition-all duration-300 ${isChatOpen ? "max-w-3xl" : "max-w-4xl mx-auto"}`}>
+      {/* Timeline spine line (desktop only) */}
+      <div className="hidden sm:block absolute left-0 top-0 bottom-0 w-px bg-neutral-200 dark:bg-white/10 transition-colors duration-[80ms]" />
       {/* Section header */}
       {title && (
         <div className="flex items-center justify-between mb-4">

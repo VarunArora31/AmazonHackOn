@@ -5,7 +5,6 @@ import { Command } from "cmdk";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
-  UtensilsCrossed,
   GraduationCap,
   Briefcase,
   Calendar,
@@ -16,7 +15,6 @@ import {
 } from "lucide-react";
 import { useNotices } from "@/lib/notices-context";
 import { useCommandPalette } from "@/lib/command-palette-context";
-import { calendarEvents, hostelTimings } from "@/lib/data";
 
 // ─── Hybrid Search Button (Trigger) ────────────────────────────
 
@@ -128,19 +126,19 @@ export function CommandPaletteDialog() {
 
                 <Command.Separator className="my-2 h-px bg-neutral-200 dark:bg-[#1a1a1a]/60" />
 
-                {/* Schedule */}
-                <Command.Group heading="Schedule">
-                  {calendarEvents.slice(0, 4).map((event) => (
+                {/* All Events (from real notices) */}
+                <Command.Group heading="Events & Schedule">
+                  {notices.filter((n) => n.category === "Academics" || n.category === "Placement" || n.category === "Sports").slice(0, 4).map((event) => (
                     <Command.Item
                       key={event.id}
-                      value={`${event.title} ${event.date} ${event.time}`}
+                      value={`${event.title} ${event.date} ${event.time} ${event.category}`}
                       onSelect={close}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm text-neutral-600 dark:text-neutral-400 data-[selected=true]:bg-neutral-100 dark:data-[selected=true]:bg-[#1a1a1a] data-[selected=true]:text-neutral-900 dark:data-[selected=true]:text-neutral-100"
                     >
                       <Calendar className="w-4 h-4 text-neutral-700 dark:text-neutral-300 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="truncate font-medium text-neutral-900 dark:text-neutral-100">{event.title}</p>
-                        <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-0.5">{event.time}</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-0.5">{event.category} · {event.time}</p>
                       </div>
                     </Command.Item>
                   ))}
@@ -148,25 +146,20 @@ export function CommandPaletteDialog() {
 
                 <Command.Separator className="my-2 h-px bg-neutral-200 dark:bg-[#1a1a1a]/60" />
 
-                {/* Hostel */}
-                <Command.Group heading="Hostel & Mess">
-                  {hostelTimings.map((timing) => (
+                {/* Hostel & General */}
+                <Command.Group heading="Hostel & General">
+                  {notices.filter((n) => n.category === "Hostel Admin" || n.category === "General" || n.category === "Club Event").slice(0, 4).map((event) => (
                     <Command.Item
-                      key={timing.label}
-                      value={`${timing.label} ${timing.time} mess hostel`}
+                      key={event.id}
+                      value={`${event.title} ${event.summary} ${event.category} hostel mess general club`}
                       onSelect={close}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm text-neutral-600 dark:text-neutral-400 data-[selected=true]:bg-neutral-100 dark:data-[selected=true]:bg-[#1a1a1a] data-[selected=true]:text-neutral-900 dark:data-[selected=true]:text-neutral-100"
                     >
-                      {timing.label.includes("Mess") ? (
-                        <UtensilsCrossed className="w-4 h-4 text-amber-400 shrink-0" />
-                      ) : (
-                        <Clock className="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0" />
-                      )}
+                      <Clock className="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium text-neutral-900 dark:text-neutral-100">{timing.label}</p>
+                        <p className="truncate font-medium text-neutral-900 dark:text-neutral-100">{event.title}</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-0.5">{event.category}</p>
                       </div>
-                      <span className="text-xs font-mono text-neutral-500 dark:text-neutral-600">{timing.time}</span>
-                      {timing.active && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
                     </Command.Item>
                   ))}
                 </Command.Group>

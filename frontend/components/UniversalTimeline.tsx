@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import {
@@ -22,6 +22,7 @@ import { format } from "date-fns";
 import { sortEventsByTime } from "@/lib/sort-utils";
 import { useUser } from "@/lib/user-context";
 import { useCommandPalette } from "@/lib/command-palette-context";
+import { useChat } from "@/lib/chat-context";
 import { useVimNavigation } from "@/hooks/useVimNavigation";
 import type { Notice, NoticeCategory, Urgency } from "@/lib/data";
 
@@ -126,13 +127,13 @@ function TimelineCard({
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       className={`group relative flex items-start gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
         isFocused
-          ? "border-neutral-400 bg-neutral-100 ring-1 ring-neutral-400 shadow-md scale-[1.01]"
+          ? "border-neutral-400 dark:border-neutral-600 bg-neutral-100 dark:bg-[#1a1a1a] ring-1 ring-neutral-400 dark:ring-neutral-600 shadow-md dark:shadow-none scale-[1.01]"
           : "border-border bg-card card-glow"
       }`}
     >
       {/* Vim focus indicator */}
       {isFocused && (
-        <div className="absolute -left-px top-3 bottom-3 w-[2px] rounded-full bg-neutral-900" />
+        <div className="absolute -left-px top-3 bottom-3 w-[2px] rounded-full bg-neutral-900 dark:bg-neutral-300" />
       )}
 
       {/* Left: Time column */}
@@ -223,7 +224,7 @@ function ArchivedCard({ notice, onRestore }: { notice: Notice; onRestore: (id: s
 
 // ─── Archive Drawer ─────────────────────────────────────────────
 
-function ArchiveDrawer({ archived, onRestore }: { archived: Notice[]; onRestore: (id: string) => void }) {
+function ArchiveDrawer({ archived, onRestore, onClearAll }: { archived: Notice[]; onRestore: (id: string) => void; onClearAll?: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
   if (archived.length === 0) return null;
 
@@ -258,9 +259,16 @@ function ArchiveDrawer({ archived, onRestore }: { archived: Notice[]; onRestore:
                 ))}
               </AnimatePresence>
             </div>
-            <p className="text-[10px] text-muted-foreground/50 mt-3 px-1 italic">
-              Archived notices are muted but never deleted. Restore anytime.
-            </p>
+            <div className="flex items-center justify-between mt-3 px-1">
+              <p className="text-[10px] text-muted-foreground/50 italic">
+                Archived notices are muted but never deleted.
+              </p>
+              {onClearAll && (
+                <button onClick={onClearAll} className="text-[10px] text-red-500 hover:text-red-600 dark:hover:text-red-400 font-medium">
+                  Clear all
+                </button>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -281,8 +289,43 @@ export function UniversalTimeline({ events, title, emptyMessage = "No notices fo
   const router = useRouter();
   const searchParams = useSearchParams();
   const { open: openSearch } = useCommandPalette();
+  const { isChatOpen } = useChat();
 
-  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(() => {
+    // Load per-user archived IDs from localStorage
+    if (typeof window === "undefined") return new Set<string>();
+    try {
+      const stored = localStorage.getItem("archived_notices_user");
+      return stored ? new Set(JSON.parse(stored)) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
+
+  // Persist archive state per user
+  const saveArchive = (ids: Set<string>) => {
+    try {
+      localStorage.setItem("archived_notices_user", JSON.stringify([...ids]));
+    } catch {}
+  };
+
+  // Load correct user key on mount
+  useEffect(() => {
+    async function loadUserArchive() {
+      try {
+        const { getCurrentUser } = await import("@/lib/auth");
+        const user = await getCurrentUser();
+        if (user) {
+          const key = `archived_notices_${user.id}`;
+          const stored = localStorage.getItem(key);
+          if (stored) {
+            setArchivedIds(new Set(JSON.parse(stored)));
+          }
+          // Update the save function to use user-specific key
+          localStorage.setItem("_archive_key", key);
+        }
+      } catch {}
+    }
+    loadUserArchive();
+  }, []);
 
   // ─── URL-driven date state ────────────────────────────────
   const targetDate = searchParams.get("date");
@@ -290,33 +333,58 @@ export function UniversalTimeline({ events, title, emptyMessage = "No notices fo
   const isTimeTravel = targetDate !== null && targetDate !== todayStr;
 
   // ─── Filter + sort ────────────────────────────────────────
+  const [clearedIds, setClearedIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set<string>();
+    try {
+      const key = localStorage.getItem("_archive_key");
+      const stored = localStorage.getItem((key || "archived_notices_user") + "_cleared");
+      return stored ? new Set(JSON.parse(stored)) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
+
   const filteredByDate = useMemo(() => {
     if (targetDate) return events.filter((e) => e.date === targetDate);
     return events;
   }, [events, targetDate]);
 
   const activeEvents = useMemo(
-    () => sortEventsByTime(filteredByDate.filter((e) => !archivedIds.has(e.id))),
-    [filteredByDate, archivedIds]
+    () => sortEventsByTime(filteredByDate.filter((e) => !archivedIds.has(e.id) && !clearedIds.has(e.id))),
+    [filteredByDate, archivedIds, clearedIds]
   );
 
   const archivedEvents = useMemo(
-    () => filteredByDate.filter((e) => archivedIds.has(e.id)),
-    [filteredByDate, archivedIds]
+    () => filteredByDate.filter((e) => archivedIds.has(e.id) && !clearedIds.has(e.id)),
+    [filteredByDate, archivedIds, clearedIds]
   );
 
   // ─── Handlers ─────────────────────────────────────────────
   const archiveNotice = useCallback((id: string) => {
-    setArchivedIds((prev) => new Set([...prev, id]));
+    setArchivedIds((prev) => {
+      const next = new Set([...prev, id]);
+      // Save to per-user localStorage
+      const key = localStorage.getItem("_archive_key") || "archived_notices_user";
+      localStorage.setItem(key, JSON.stringify([...next]));
+      return next;
+    });
   }, []);
 
   const restoreNotice = useCallback((id: string) => {
     setArchivedIds((prev) => {
       const next = new Set(prev);
       next.delete(id);
+      const key = localStorage.getItem("_archive_key") || "archived_notices_user";
+      localStorage.setItem(key, JSON.stringify([...next]));
       return next;
     });
   }, []);
+
+  const clearArchive = useCallback(() => {
+    // Mark all currently archived items as permanently cleared
+    const newCleared = new Set([...clearedIds, ...archivedIds]);
+    setClearedIds(newCleared);
+    const key = localStorage.getItem("_archive_key") || "archived_notices_user";
+    localStorage.setItem(key + "_cleared", JSON.stringify([...newCleared]));
+  }, [archivedIds, clearedIds]);
 
   const jumpToToday = () => {
     router.push(pathname, { scroll: false });
@@ -365,7 +433,9 @@ export function UniversalTimeline({ events, title, emptyMessage = "No notices fo
 
   return (
     <LayoutGroup>
-      <div className="max-w-2xl space-y-5">
+      <div className={`relative pl-0 sm:pl-5 space-y-5 transition-all duration-300 ${isChatOpen ? "max-w-3xl" : "max-w-4xl mx-auto"}`}>
+        {/* Timeline spine line (desktop only) */}
+        <div className="hidden sm:block absolute left-0 top-0 bottom-0 w-px bg-neutral-200 dark:bg-white/10 transition-colors duration-[80ms]" />
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
@@ -441,7 +511,7 @@ export function UniversalTimeline({ events, title, emptyMessage = "No notices fo
         })}
 
         {/* Archive drawer */}
-        <ArchiveDrawer archived={archivedEvents} onRestore={restoreNotice} />
+        <ArchiveDrawer archived={archivedEvents} onRestore={restoreNotice} onClearAll={clearArchive} />
 
         {/* Vim nav hint (shown only when not active) */}
         {!isFocusActive && activeEvents.length > 0 && (

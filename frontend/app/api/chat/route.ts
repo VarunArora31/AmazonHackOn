@@ -23,12 +23,17 @@ function getGroq(): Groq {
   return groqClient;
 }
 
-const SYSTEM_PROMPT = `You are Campus AI, a helpful assistant for Indian university students using CampusFlow. Keep your answers concise (2-3 sentences max), energetic, and helpful. You have access to the student's current notices and schedule context provided below. Use specific dates, times, and details from the context when answering. If you don't have info about something, say so honestly. Use Indian English conventions.`;
+const SYSTEM_PROMPT = `You are Campus AI, a helpful assistant for Indian university students using CampusFlow. Keep your answers concise (2-3 sentences max), energetic, and helpful. You have access to the student's current notices (today & tomorrow) provided below. IMPORTANT RULES:
+- When asked about "today", "new", "latest", or general questions, ONLY reference events from TODAY and TOMORROW.
+- Only mention older/past notices if the user EXPLICITLY asks about a specific past date.
+- Use specific dates, times, and details from the context when answering.
+- If you don't have info about something, say so honestly.
+- Use Indian English conventions.`;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { message, notices = [], history = [] } = body;
+    const { message, notices = [], olderNotices = [], history = [], today } = body;
 
     if (!message || typeof message !== "string" || !message.trim()) {
       return NextResponse.json(
@@ -37,16 +42,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build context from notices
-    const contextStr =
-      notices.length > 0
-        ? `\n\nCURRENT NOTICES:\n${notices
-            .map(
-              (n: any) =>
-                `- [${n.category}] ${n.title}: ${n.summary} (Date: ${n.date || "N/A"}, Time: ${n.time || "N/A"})`
-            )
-            .join("\n")}`
-        : "";
+    // Build context — prioritize today/tomorrow events
+    const dateStr = today || new Date().toISOString().split("T")[0];
+    const dateContext = `\nTODAY'S DATE: ${dateStr}\n`;
+
+    let contextStr = dateContext;
+
+    if (notices.length > 0) {
+      contextStr += `\nACTIVE NOTICES (Today & Tomorrow — ${notices.length} events):\n${notices
+        .map(
+          (n: any) =>
+            `- [${n.category}${n.urgency ? ` | ${n.urgency}` : ""}] ${n.title}: ${n.summary || ""} (Date: ${n.date || "N/A"}, Time: ${n.time || "N/A"})`
+        )
+        .join("\n")}`;
+    } else {
+      contextStr += "\nNo active notices for today or tomorrow.";
+    }
+
+    if (olderNotices.length > 0) {
+      contextStr += `\n\nPAST NOTICES (only mention if user asks about these dates):\n${olderNotices
+        .map((n: any) => `- [${n.category}] ${n.title} (${n.date})`)
+        .join("\n")}`;
+    }
 
     const systemWithContext = SYSTEM_PROMPT + contextStr;
 

@@ -2,6 +2,8 @@
 
 import { OmniBar } from "@/components/omni-bar";
 import { CampusPulse } from "@/components/CampusPulse";
+import { CampusRAG } from "@/components/CampusRAG";
+import { DocumentUploader } from "@/components/DocumentUploader";
 import { useNotices } from "@/lib/notices-context";
 import { UniversalTimeline } from "@/components/UniversalTimeline";
 
@@ -15,6 +17,12 @@ export default function DashboardPage() {
 
       {/* Omni-bar for parsing */}
       <OmniBar />
+
+      {/* Campus Knowledge Base (RAG) */}
+      <CampusRAG />
+
+      {/* Document Upload for Vector DB */}
+      <DocumentUploader />
 
       {/* Global feed — all categories, date-filtered via URL */}
       <UniversalTimeline
