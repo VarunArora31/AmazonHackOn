@@ -74,14 +74,7 @@ const categoryMeta: Record<
 
 // ─── Mock Data: Personal Tasks (Student-local, not in global DB) ─
 
-const initialPersonalEvents: TimelineEvent[] = [
-  { id: "p1", title: "DSA Practice — Graphs & Trees", time: "06:00", timeLabel: "6:00 AM", type: "personal", day: "today" },
-  { id: "p2", title: "Meet Harsh for project discussion", time: "12:30", timeLabel: "12:30 PM", type: "personal", day: "today" },
-  { id: "p3", title: "Gym — Leg day", time: "18:00", timeLabel: "6:00 PM", type: "personal", day: "today" },
-  { id: "p4", title: "Call home", time: "21:00", timeLabel: "9:00 PM", type: "personal", day: "today" },
-  { id: "p5", title: "Resume update for Microsoft", time: "08:00", timeLabel: "8:00 AM", type: "personal", day: "tomorrow" },
-  { id: "p6", title: "Library — Return DBMS book", time: "14:00", timeLabel: "2:00 PM", type: "personal", day: "tomorrow" },
-];
+const initialPersonalEvents: TimelineEvent[] = [];
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -361,31 +354,63 @@ export default function PersonalPage() {
 
   // ─── LOCAL State: personal tasks + archive IDs ────────────
   // Persist personal tasks in localStorage per user
-  const [personalTasks, setPersonalTasks] = useState<TimelineEvent[]>(initialPersonalEvents);
+  const [personalTasks, setPersonalTasks] = useState<TimelineEvent[]>([]);
   // Archive is LOCAL ONLY — never mutates the global database
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
+  const [userId, setUserId] = useState<string | null>(null);
 
-  // Load saved tasks from localStorage on mount (client-only)
+  // Load saved tasks from localStorage on mount (per-user, with midnight cleanup)
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("personal_tasks");
-      if (stored) {
-        setPersonalTasks(JSON.parse(stored));
-      }
-    } catch {}
+    async function loadTasks() {
+      try {
+        const { getCurrentUser } = await import("@/lib/auth");
+        const authUser = await getCurrentUser();
+        const uid = authUser?.id || "anonymous";
+        setUserId(uid);
+
+        const key = `personal_tasks_${uid}`;
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          const parsed: TimelineEvent[] = JSON.parse(stored);
+
+          // Midnight cleanup logic:
+          const todayStr = new Date().toISOString().split("T")[0];
+          const cleaned = parsed
+            .filter((task) => {
+              // Remove completed tasks from previous days (they fade after midnight)
+              if (task.done && task.day === "today") {
+                // Check if this was marked done on a previous day
+                const taskDate = (task as any).completedDate;
+                if (taskDate && taskDate !== todayStr) return false;
+              }
+              return true;
+            })
+            .map((task) => {
+              // Shift undone "today" tasks that are actually from a past session to still show as "today"
+              // (they persist until done)
+              return { ...task, day: task.done ? task.day : "today" as const };
+            });
+
+          setPersonalTasks(cleaned);
+        }
+      } catch {}
+    }
+    loadTasks();
   }, []);
 
-  // Save personal tasks to localStorage whenever they change
+  // Save personal tasks to localStorage whenever they change (per-user)
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
+    if (!userId) return;
     try {
-      localStorage.setItem("personal_tasks", JSON.stringify(personalTasks));
+      const key = `personal_tasks_${userId}`;
+      localStorage.setItem(key, JSON.stringify(personalTasks));
     } catch {}
-  }, [personalTasks]);
+  }, [personalTasks, userId]);
   const [newTask, setNewTask] = useState("");
 
   // ─── PROPAGATION: Merge global official events + personal tasks ──
@@ -444,7 +469,12 @@ export default function PersonalPage() {
   // ─── Handlers ─────────────────────────────────────────────
 
   const toggleDone = (id: string) => {
-    setPersonalTasks((prev) => prev.map((e) => (e.id === id ? { ...e, done: !e.done } : e)));
+    const todayStr = new Date().toISOString().split("T")[0];
+    setPersonalTasks((prev) => prev.map((e) =>
+      e.id === id
+        ? { ...e, done: !e.done, completedDate: !e.done ? todayStr : undefined } as any
+        : e
+    ));
   };
 
   // LOCAL archive — only hides from this student's view, never deletes globally
