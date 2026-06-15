@@ -205,39 +205,46 @@ export function SidebarChat() {
   // Unread indicator (messages since last close)
   const hasMessages = messages.length > 1;
 
+  // Track drag state to distinguish click from drag
+  const isDragging = useRef(false);
+
   return (
     <>
-      {/* ─── Floating Trigger Button ─────────────────────────── */}
+      {/* ─── Floating Draggable Trigger Button ────────────────── */}
       <AnimatePresence>
         {!isOpen && (
-          <motion.button
+          <motion.div
+            drag
+            dragMomentum={false}
+            dragElastic={0}
+            onDragStart={() => { isDragging.current = true; }}
+            onDragEnd={() => { setTimeout(() => { isDragging.current = false; }, 100); }}
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            onClick={() => openChat()}
-            className="fixed bottom-20 lg:bottom-6 right-4 sm:right-6 z-50 flex items-center justify-center w-12 h-12 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-black shadow-lg hover:scale-105 active:scale-95 transition-transform"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => { if (!isDragging.current) openChat(); }}
+            style={{ touchAction: "none" }}
+            className="fixed bottom-20 lg:bottom-6 right-4 lg:right-6 z-50 flex items-center justify-center w-12 h-12 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-black shadow-lg cursor-grab active:cursor-grabbing"
           >
-            <MessageCircle className="w-5 h-5" />
+            <MessageCircle className="w-5 h-5 pointer-events-none" />
             {hasMessages && (
-              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-black" />
+              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-black pointer-events-none" />
             )}
-          </motion.button>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ─── Slide-in Chat Panel ─────────────────────────────── */}
+      {/* ─── Slide-in Chat Panel (no backdrop blur) ──────────── */}
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop (subtle, click to close) */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+            {/* Click-away layer (transparent, no blur) */}
+            <div
               onClick={() => closeChat()}
-              className="fixed inset-0 z-50 bg-black/20 dark:bg-black/40 backdrop-blur-[2px]"
+              className="fixed inset-0 z-40"
             />
 
             {/* Panel */}

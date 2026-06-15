@@ -13,8 +13,9 @@ create table if not exists rag_documents (
   category        text not null default 'general',
   chunk_text      text not null,
   chunk_index     integer not null default 0,
-  embedding       vector(384),  -- MiniLM-L6-v2 produces 384-dim vectors
+  embedding       vector(384),  -- 384-dim vectors
   metadata        jsonb default '{}',
+  user_id         text,          -- per-user knowledge base (null = shared/global)
   created_at      timestamptz not null default now()
 );
 

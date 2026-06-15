@@ -35,9 +35,10 @@ Rules:
 
 export async function POST(req: NextRequest) {
   try {
-    const { question, category } = (await req.json()) as {
+    const { question, category, userId } = (await req.json()) as {
       question: string;
       category?: string;
+      userId?: string;
     };
 
     if (!question || typeof question !== "string" || !question.trim()) {
@@ -62,29 +63,49 @@ export async function POST(req: NextRequest) {
     // 2. Similarity search in Supabase
     const supabase = getSupabaseAdmin();
     
-    // First try the RPC function
     let matches: any[] | null = null;
+
+    // Try RPC vector search first (searches all docs or user-specific)
     const { data: rpcMatches, error: searchError } = await supabase.rpc(
       "match_documents",
       {
         query_embedding: questionEmbedding,
-        match_count: 5,
+        match_count: 8,
         filter_category: category || null,
       }
     );
 
     if (!searchError && rpcMatches && rpcMatches.length > 0) {
-      matches = rpcMatches;
-    } else {
-      // RPC failed — try direct table query (text search fallback)
-      console.warn("[RAG Query] RPC failed:", searchError?.message, "— trying text search");
-      const searchTerms = question.split(/\s+/).filter(w => w.length > 2).join(" | ");
-      const { data: textMatches } = await supabase
-        .from("rag_documents")
-        .select("id, title, category, chunk_text")
-        .or(`chunk_text.ilike.%${question.split(" ")[0]}%,title.ilike.%${question.split(" ")[0]}%`)
-        .limit(5);
+      // Filter by user_id client-side if provided (RPC returns all)
+      matches = userId
+        ? rpcMatches.filter((m: any) => !m.user_id || m.user_id === userId)
+        : rpcMatches;
+      
+      // If user filter eliminated all results, try without filter
+      if (matches && matches.length === 0) {
+        matches = rpcMatches;
+      }
+    }
 
+    // Fallback: text search if RPC failed or returned nothing
+    if (!matches || matches.length === 0) {
+      console.warn("[RAG Query] RPC failed or empty:", searchError?.message, "— trying text search");
+      let query = supabase
+        .from("rag_documents")
+        .select("id, title, category, chunk_text, user_id")
+        .limit(8);
+
+      // Filter by user if provided
+      if (userId) {
+        query = query.or(`user_id.eq.${userId},user_id.is.null`);
+      }
+
+      const keyword = question.split(/\s+/).filter(w => w.length > 2)[0];
+      if (keyword) {
+        query = query.or(`chunk_text.ilike.%${keyword}%,title.ilike.%${keyword}%`);
+      }
+
+      const { data: textMatches } = await query;
       if (textMatches && textMatches.length > 0) {
         matches = textMatches.map((m: any) => ({ ...m, similarity: 0.5 }));
       }

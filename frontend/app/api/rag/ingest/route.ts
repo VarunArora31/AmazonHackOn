@@ -14,10 +14,11 @@ import { getSupabaseAdmin } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { title, category, content } = (await req.json()) as {
+    const { title, category, content, userId } = (await req.json()) as {
       title: string;
       category: string;
       content: string;
+      userId?: string;
     };
 
     if (!title || !content) {
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
         chunk_index: chunk.index,
         embedding: embedding,
         metadata: { original_title: title, chunk_of: chunks.length },
+        user_id: userId || null,
       } as any);
 
       if (error) {

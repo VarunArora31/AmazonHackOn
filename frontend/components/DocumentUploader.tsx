@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload,
@@ -10,6 +10,7 @@ import {
   X,
   Plus,
   Database,
+  AlertCircle,
 } from "lucide-react";
 
 // ─── Category Options ───────────────────────────────────────────
@@ -32,54 +33,76 @@ export function DocumentUploader() {
   const [category, setCategory] = useState("general");
   const [content, setContent] = useState("");
   const [isIngesting, setIsIngesting] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [parseStatus, setParseStatus] = useState<string | null>(null);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Handle file upload
+  // Get user ID for per-user knowledge base
+  useEffect(() => {
+    async function loadUserId() {
+      try {
+        const { getCurrentUser } = await import("@/lib/auth");
+        const user = await getCurrentUser();
+        if (user) setUserId(user.id);
+      } catch {}
+    }
+    loadUserId();
+  }, []);
+
+  // Handle file upload — all formats parsed server-side
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Set title from filename
     setTitle(file.name.replace(/\.[^/.]+$/, ""));
+    setIsParsing(true);
+    setParseStatus(null);
+    setContent("");
 
-    if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-      // PDF parsing is unreliable in browser — prompt user to paste
-      setContent("");
-      alert("PDF uploaded! For best results:\n\n1. Open the PDF in Chrome/Edge\n2. Select All (Ctrl+A)\n3. Copy (Ctrl+C)\n4. Paste here (Ctrl+V)\n\nThis ensures clean text for the AI.");
-    } else if (file.name.endsWith(".docx") || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-      // DOCX — parse server-side with mammoth
-      setContent("Extracting text from DOCX...");
-      try {
+    try {
+      if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+        // PDF — parse server-side
+        setParseStatus("Extracting text from PDF...");
         const formData = new FormData();
         formData.append("file", file);
-        const res = await fetch("/api/rag/parse-docx", {
-          method: "POST",
-          body: formData,
-        });
+        const res = await fetch("/api/rag/parse-pdf", { method: "POST", body: formData });
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.text) {
           setContent(data.text);
+          setParseStatus(`Extracted ${data.characters.toLocaleString()} characters`);
         } else {
-          setContent("");
-          alert(`DOCX extraction failed: ${data.error}. Please paste the text manually.`);
+          setParseStatus(data.error || "Could not extract text from PDF. Try pasting content manually.");
         }
-      } catch {
-        setContent("");
-        alert("DOCX extraction failed. Please paste the text manually.");
-      }
-    } else {
-      // Text files — read directly
-      try {
+      } else if (file.name.endsWith(".docx") || file.type.includes("wordprocessingml")) {
+        // DOCX — parse server-side
+        setParseStatus("Extracting text from DOCX...");
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/rag/parse-docx", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.success && data.text) {
+          setContent(data.text);
+          setParseStatus(`Extracted ${data.characters.toLocaleString()} characters`);
+        } else {
+          setParseStatus(data.error || "Could not extract DOCX text. Try pasting manually.");
+        }
+      } else {
+        // Text files (.txt, .md, .csv) — read directly
+        setParseStatus("Reading file...");
         const text = await file.text();
         setContent(text);
-      } catch {
-        setContent("[Could not read file. Please paste the text manually.]");
+        setParseStatus(`Loaded ${text.length.toLocaleString()} characters`);
       }
+    } catch (err: any) {
+      setParseStatus(`Error: ${err.message || "File parsing failed"}`);
+    } finally {
+      setIsParsing(false);
     }
   };
 
-  // Ingest into vector DB
+  // Ingest into vector DB (per-user)
   const handleIngest = async () => {
     if (!title.trim() || !content.trim()) return;
 
@@ -94,6 +117,7 @@ export function DocumentUploader() {
           title: title.trim(),
           category,
           content: content.trim(),
+          userId: userId || undefined,
         }),
       });
 
@@ -101,20 +125,20 @@ export function DocumentUploader() {
       setResult({
         success: data.success,
         message: data.success
-          ? `✓ ${data.message}`
-          : `✗ ${data.error || "Ingestion failed"}`,
+          ? data.message || "Document ingested successfully"
+          : data.error || "Ingestion failed",
       });
 
       if (data.success) {
-        // Clear form after success
         setTimeout(() => {
           setTitle("");
           setContent("");
           setResult(null);
+          setParseStatus(null);
         }, 3000);
       }
     } catch (err: any) {
-      setResult({ success: false, message: `✗ ${err.message || "Network error"}` });
+      setResult({ success: false, message: err.message || "Network error" });
     } finally {
       setIsIngesting(false);
     }
@@ -186,11 +210,31 @@ export function DocumentUploader() {
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-3 py-2 w-full rounded-lg border border-dashed border-neutral-300 dark:border-white/10 text-neutral-500 dark:text-neutral-400 text-xs hover:border-neutral-400 dark:hover:border-white/20 hover:bg-neutral-50 dark:hover:bg-[#0a0a0a] transition-colors"
+                  disabled={isParsing}
+                  className="flex items-center gap-2 px-3 py-2 w-full rounded-lg border border-dashed border-neutral-300 dark:border-white/10 text-neutral-500 dark:text-neutral-400 text-xs hover:border-neutral-400 dark:hover:border-white/20 hover:bg-neutral-50 dark:hover:bg-[#0a0a0a] transition-colors disabled:opacity-50"
                 >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Upload .txt, .md, .csv, .docx, or .pdf</span>
+                  {isParsing ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Parsing file...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload .txt, .md, .csv, .docx, or .pdf</span>
+                    </>
+                  )}
                 </button>
+                {parseStatus && (
+                  <p className={`mt-1.5 text-[10px] flex items-center gap-1 ${
+                    parseStatus.startsWith("Error") || parseStatus.includes("Could not")
+                      ? "text-red-500"
+                      : "text-emerald-600 dark:text-emerald-400"
+                  }`}>
+                    {parseStatus.startsWith("Error") ? <AlertCircle className="w-3 h-3" /> : <Check className="w-3 h-3" />}
+                    {parseStatus}
+                  </p>
+                )}
               </div>
 
               {/* Content textarea */}

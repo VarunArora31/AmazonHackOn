@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen,
@@ -57,6 +57,18 @@ export function CampusRAG() {
   const [isSearching, setIsSearching] = useState(false);
   const [result, setResult] = useState<RAGResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Load user ID for per-user knowledge base
+  useEffect(() => {
+    (async () => {
+      try {
+        const { getCurrentUser } = await import("@/lib/auth");
+        const user = await getCurrentUser();
+        if (user) setUserId(user.id);
+      } catch {}
+    })();
+  }, []);
 
   const handleAsk = async (q?: string) => {
     const queryText = q || question;
@@ -72,7 +84,7 @@ export function CampusRAG() {
       const vectorRes = await fetch("/api/rag/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: queryText }),
+        body: JSON.stringify({ question: queryText, userId: userId || undefined }),
       });
       
       const data = await vectorRes.json();

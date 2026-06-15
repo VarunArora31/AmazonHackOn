@@ -128,7 +128,7 @@ export function AdminAnnouncement() {
         onClick={() => setIsOpen(true)}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-black text-sm font-semibold shadow-lg hover:opacity-90 transition-opacity"
+        className="fixed bottom-20 lg:bottom-6 right-20 lg:right-20 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-black text-sm font-semibold shadow-lg hover:opacity-90 transition-opacity"
       >
         <Megaphone className="w-4 h-4" />
         <span className="hidden sm:inline">New Announcement</span>

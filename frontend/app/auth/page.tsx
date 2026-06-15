@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Workflow, Check, ArrowRight, Loader2, Mail, Lock } from "lucide-react";
-import { signIn, signUp, signInWithGoogle } from "@/lib/auth";
+import { signIn, signUp, signInWithGoogle, getSession } from "@/lib/auth";
 
 type AuthMode = "signin" | "signup";
 
@@ -19,6 +19,30 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  // ─── Check existing session on mount ──────────────────────
+  useEffect(() => {
+    async function checkExistingSession() {
+      try {
+        // If user just logged out, don't redirect back
+        const justLoggedOut = localStorage.getItem("just_logged_out");
+        if (justLoggedOut) {
+          localStorage.removeItem("just_logged_out");
+          setCheckingSession(false);
+          return;
+        }
+
+        const session = await getSession();
+        if (session) {
+          router.replace("/dashboard");
+          return;
+        }
+      } catch {}
+      setCheckingSession(false);
+    }
+    checkExistingSession();
+  }, [router]);
 
   // ─── Google OAuth ─────────────────────────────────────────
 
@@ -59,6 +83,15 @@ export default function AuthPage() {
     } catch (err: any) { setError(err.message); }
     finally { setLoading(false); }
   };
+
+  // ─── Loading while checking session ────────────────────────
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-black">
+        <Loader2 className="w-6 h-6 text-neutral-400 animate-spin" />
+      </div>
+    );
+  }
 
   // ─── Sign In View ─────────────────────────────────────────
 
@@ -108,7 +141,26 @@ export default function AuthPage() {
               </button>
             </form>
 
-            <div className="mt-4 text-center">
+            <div className="mt-3 text-center">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!email.trim()) { setError("Enter your email first, then click Forgot Password"); return; }
+                  setLoading(true); setError(null);
+                  try {
+                    const { resetPassword } = await import("@/lib/auth");
+                    await resetPassword(email);
+                    setError(`✓ Reset link sent to ${email}. Check your inbox.`);
+                  } catch (err: any) { setError(err.message); }
+                  finally { setLoading(false); }
+                }}
+                className="text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white underline underline-offset-2"
+              >
+                Forgot password?
+              </button>
+            </div>
+
+            <div className="mt-3 text-center">
               <button type="button" onClick={() => { setMode("signup"); setError(null); }} className="text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white">
                 Don't have an account? <span className="font-medium">Sign up</span>
               </button>
@@ -262,5 +314,14 @@ function InputField({ icon: Icon, type, placeholder, value, onChange }: { icon: 
 }
 
 function ErrorBox({ message }: { message: string }) {
-  return <div className="mb-4 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-xs text-red-700 dark:text-red-400">{message}</div>;
+  const isSuccess = message.startsWith("✓");
+  return (
+    <div className={`mb-4 px-3 py-2 rounded-lg text-xs ${
+      isSuccess
+        ? "bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400"
+        : "bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400"
+    }`}>
+      {message}
+    </div>
+  );
 }

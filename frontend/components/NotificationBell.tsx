@@ -48,33 +48,12 @@ export function NotificationBell() {
               </span>
               <div className="flex items-center gap-1">
                 {unreadCount > 0 && (
-                  <button onClick={async () => {
-                    // Get current user ID for per-user storage
-                    const { getCurrentUser } = await import("@/lib/auth");
-                    const user = await getCurrentUser();
-                    const userKey = user ? `read_announcements_${user.id}` : "read_announcements";
-                    
-                    const existing: string[] = JSON.parse(localStorage.getItem(userKey) || "[]");
-                    const sourceIds = notifications.filter(n => n.sourceId).map(n => n.sourceId!);
-                    const merged = [...new Set([...existing, ...sourceIds])];
-                    localStorage.setItem(userKey, JSON.stringify(merged));
-                    markAllRead();
-                  }} className="p-1 rounded text-[10px] text-neutral-500 hover:text-neutral-900 dark:hover:text-white" title="Mark all read">
+                  <button onClick={() => markAllRead()} className="p-1 rounded text-[10px] text-neutral-500 hover:text-neutral-900 dark:hover:text-white" title="Mark all read">
                     <Check className="w-3.5 h-3.5" />
                   </button>
                 )}
                 {notifications.length > 0 && (
-                  <button onClick={async () => {
-                    const { getCurrentUser } = await import("@/lib/auth");
-                    const user = await getCurrentUser();
-                    const userKey = user ? `read_announcements_${user.id}` : "read_announcements";
-                    
-                    const existing: string[] = JSON.parse(localStorage.getItem(userKey) || "[]");
-                    const sourceIds = notifications.filter(n => n.sourceId).map(n => n.sourceId!);
-                    const merged = [...new Set([...existing, ...sourceIds])];
-                    localStorage.setItem(userKey, JSON.stringify(merged));
-                    clearAll();
-                  }} className="p-1 rounded text-[10px] text-neutral-500 hover:text-red-500" title="Clear all">
+                  <button onClick={() => clearAll()} className="p-1 rounded text-[10px] text-neutral-500 hover:text-red-500" title="Clear all">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}

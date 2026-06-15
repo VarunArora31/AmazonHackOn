@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Settings,
   Smartphone,
   Key,
   Command,
@@ -75,12 +74,18 @@ export function ProfilePopover() {
 
   // ─── Handlers ─────────────────────────────────────────────
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsOpen(false);
-    // Clear any local session data
+    try {
+      const { signOut } = await import("@/lib/auth");
+      await signOut();
+    } catch {}
+    // Clear per-user localStorage data
     if (typeof window !== "undefined") {
       localStorage.removeItem("user_phone");
       localStorage.removeItem("user_session");
+      // Flag that this was a deliberate logout
+      localStorage.setItem("just_logged_out", "1");
     }
     router.push("/auth");
   };
@@ -110,7 +115,6 @@ export function ProfilePopover() {
   // ─── Menu Items ───────────────────────────────────────────
 
   const workspaceItems: MenuItem[] = [
-    { icon: Settings, label: "Settings", shortcut: "⇧⌘P" },
     { icon: Command, label: "Command Menu", shortcut: "⌘K", onClick: handleCommandMenu },
     { icon: Palette, label: "Toggle Theme", onClick: handleThemeToggle },
   ];
@@ -119,13 +123,46 @@ export function ProfilePopover() {
     { icon: Smartphone, label: "WhatsApp Integration", onClick: handleWhatsAppSetup },
   ];
 
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const accountItems: MenuItem[] = [
-    { icon: HelpCircle, label: "Forgot Password", onClick: () => { setIsOpen(false); router.push("/auth"); } },
+    { icon: HelpCircle, label: "Forgot Password", onClick: async () => {
+      setIsOpen(false);
+      try {
+        const { resetPassword, getCurrentUser } = await import("@/lib/auth");
+        const user = await getCurrentUser();
+        const email = user?.email;
+        if (email) {
+          await resetPassword(email);
+          setToastMessage(`Reset link sent to ${email}`);
+          setTimeout(() => setToastMessage(null), 4000);
+        } else {
+          router.push("/auth");
+        }
+      } catch (err: any) {
+        setToastMessage(err.message || "Failed to send reset email");
+        setTimeout(() => setToastMessage(null), 4000);
+      }
+    }},
     { icon: LogOut, label: "Log Out", danger: true, onClick: handleLogout },
   ];
 
   return (
     <>
+      {/* Toast notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 right-4 z-[9999] px-4 py-3 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-black text-sm font-medium shadow-lg"
+          >
+            {toastMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div ref={containerRef} className="relative">
         {/* Trigger: Avatar */}
         <button
@@ -231,50 +268,15 @@ export function ProfilePopover() {
 
           {/* Header */}
           <div className="flex items-center gap-3 mb-4">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-neutral-100 dark:bg-[#1a1a1a]">
-              <Smartphone className="w-4 h-4 text-neutral-700 dark:text-neutral-300" />
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-500/10">
+              <Smartphone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
               WhatsApp Integration
             </h3>
           </div>
 
-          {/* Subtitle */}
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-5">
-            Follow these steps to connect your environment to the Twilio WhatsApp Sandbox:
-          </p>
-
-          {/* Steps */}
-          <div className="space-y-4">
-            <StepItem
-              number={1}
-              title="Set up Twilio Sandbox"
-              description={<>Go to <InlineCode>twilio.com/console/sms/whatsapp/learn</InlineCode> and join the sandbox by sending a WhatsApp message.</>}
-            />
-            <StepItem
-              number={2}
-              title="Add auth token"
-              description={<>Copy your Twilio Auth Token and add <InlineCode>TWILIO_AUTH_TOKEN=xxx</InlineCode> to <InlineCode>.env.local</InlineCode></>}
-            />
-            <StepItem
-              number={3}
-              title="Expose localhost"
-              description={<>Run <InlineCode>ngrok http 3000</InlineCode> and set the public URL as your Twilio webhook endpoint.</>}
-            />
-            <StepItem
-              number={4}
-              title="Set webhook URL"
-              description={<>In Twilio Sandbox settings, set &quot;When a message comes in&quot; to <InlineCode>https://your-url/api/webhooks/whatsapp</InlineCode></>}
-            />
-          </div>
-
-          {/* Footer button */}
-          <button
-            onClick={() => setIsWhatsAppModalOpen(false)}
-            className="w-full mt-6 py-2.5 rounded-lg text-sm font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 transition-colors"
-          >
-            Got it
-          </button>
+          <WhatsAppSetupContent onClose={() => setIsWhatsAppModalOpen(false)} />
         </div>
       </div>,
       document.body
@@ -314,6 +316,107 @@ function MenuRow({ item, onClose }: { item: MenuItem; onClose: () => void }) {
 }
 
 // ─── Step Item ──────────────────────────────────────────────────
+
+// ─── WhatsApp Setup Content ─────────────────────────────────────
+
+function WhatsAppSetupContent({ onClose }: { onClose: () => void }) {
+  const [phone, setPhone] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [existingPhone, setExistingPhone] = useState<string | null>(null);
+
+  // Load existing phone on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const { getCurrentUser } = await import("@/lib/auth");
+        const user = await getCurrentUser();
+        if (user?.user_metadata?.whatsapp_number) {
+          setExistingPhone(user.user_metadata.whatsapp_number);
+          setPhone(user.user_metadata.whatsapp_number);
+        }
+      } catch {}
+    })();
+  }, []);
+
+  const handleSave = async () => {
+    if (!phone.trim()) return;
+    setSaving(true);
+    try {
+      const { supabase } = await import("@/lib/supabase/client");
+      await supabase.auth.updateUser({
+        data: { whatsapp_number: phone.trim() },
+      });
+      setSaved(true);
+      setExistingPhone(phone.trim());
+      setTimeout(() => setSaved(false), 3000);
+    } catch {}
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-neutral-500 dark:text-neutral-400">
+        Link your WhatsApp number to get AI responses directly on WhatsApp with your campus context.
+      </p>
+
+      {/* Phone input */}
+      <div>
+        <label className="block text-[11px] font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+          Your WhatsApp Number
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+91 98765 43210"
+            className="flex-1 px-3 py-2 text-sm rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-black text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-600 outline-none focus:border-neutral-400 dark:focus:border-white/20"
+          />
+          <button
+            onClick={handleSave}
+            disabled={saving || !phone.trim()}
+            className="px-3 py-2 rounded-lg bg-neutral-900 dark:bg-white text-white dark:text-black text-xs font-semibold hover:opacity-90 disabled:opacity-30 transition-opacity"
+          >
+            {saving ? "Saving..." : saved ? "Saved ✓" : "Link"}
+          </button>
+        </div>
+        {existingPhone && (
+          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">
+            ✓ Linked: {existingPhone}
+          </p>
+        )}
+      </div>
+
+      {/* Setup steps */}
+      <div className="border-t border-neutral-100 dark:border-white/5 pt-4 space-y-3">
+        <p className="text-[11px] font-medium text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">Setup Steps</p>
+        <StepItem
+          number={1}
+          title="Join Twilio Sandbox"
+          description={<>Send <InlineCode>join hour-fought</InlineCode> to <InlineCode>+1 415 523 8886</InlineCode> on WhatsApp</>}
+        />
+        <StepItem
+          number={2}
+          title="Link your number above"
+          description="Enter the same WhatsApp number you used to join the sandbox"
+        />
+        <StepItem
+          number={3}
+          title="Start chatting!"
+          description="Send any message on WhatsApp — the AI will respond with your campus context"
+        />
+      </div>
+
+      <button
+        onClick={onClose}
+        className="w-full mt-2 py-2.5 rounded-lg text-sm font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 transition-colors"
+      >
+        Done
+      </button>
+    </div>
+  );
+}
 
 function StepItem({
   number,

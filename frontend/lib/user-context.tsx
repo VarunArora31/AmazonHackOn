@@ -1,12 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import type { UserPayload } from "./types";
 
-// Default demo user — student
+// Default placeholder while loading
 const defaultUser: UserPayload = {
   role: "STUDENT",
-  name: "Varun",
+  name: "Student",
   branch: "CSE",
   year: 3,
   hostel: "Hostel 4",
@@ -31,6 +31,39 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserPayload>(defaultUser);
+
+  // Load real user from Supabase auth on mount
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const { getCurrentUser, isAdminEmail } = await import("@/lib/auth");
+        const authUser = await getCurrentUser();
+        if (authUser) {
+          const meta = authUser.user_metadata || {};
+          const email = authUser.email || "";
+          const isAdmin = isAdminEmail(email);
+          const displayName = meta.full_name || meta.name || email.split("@")[0] || "Student";
+
+          if (isAdmin) {
+            setUser({
+              role: "ADMIN_ACADEMICS",
+              name: displayName,
+              department: "Administration",
+            });
+          } else {
+            setUser({
+              role: "STUDENT",
+              name: displayName,
+              branch: (meta.branch || "CSE") as any,
+              year: (parseInt(meta.year) || 3) as any,
+              hostel: meta.hostel || "Hostel 4",
+            });
+          }
+        }
+      } catch {}
+    }
+    loadUser();
+  }, []);
 
   const switchToAdmin = (index = 0) => {
     setUser(adminPresets[index % adminPresets.length]);

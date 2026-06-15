@@ -25,15 +25,11 @@ export function AnnouncementLoader() {
 
         const branch = user.user_metadata?.branch || "ALL";
         const year = user.user_metadata?.year || "ALL";
-        // Per-user localStorage key
-        const userKey = `read_announcements_${user.id}`;
 
         const res = await fetch(`/api/announcements?branch=${branch}&year=${year}`);
         const data = await res.json();
 
         if (data.success && data.announcements?.length > 0) {
-          const readIds: string[] = JSON.parse(localStorage.getItem(userKey) || "[]");
-
           data.announcements.forEach((ann: any) => {
             addNotice({
               id: ann.id,
@@ -46,17 +42,15 @@ export function AnnouncementLoader() {
               source: "official",
             });
 
-            // Always add notification, but mark as read if previously seen
-            const isRead = readIds.includes(ann.id);
+            // Add notification — context handles read/cleared state internally
             addNotification({
               sourceId: ann.id,
               title: `📢 ${ann.title}`,
               message: ann.summary,
               category: ann.category,
-              timestamp: ann.created_at, // Preserve original time from Supabase
+              timestamp: ann.created_at,
               targetBranch: ann.target_branch,
               targetYear: ann.target_year,
-              _preRead: isRead,
             } as any);
           });
         }
