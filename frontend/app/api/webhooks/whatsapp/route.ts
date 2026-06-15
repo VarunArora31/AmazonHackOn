@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { notices as seedNotices } from "@/lib/data";
 
 // ─── Groq Client ────────────────────────────────────────────────
 
@@ -44,58 +45,81 @@ function buildTwiML(message: string): string {
 async function getUserContext(phoneNumber: string): Promise<string> {
   try {
     const supabase = getSupabaseAdmin();
-
-    // Look up user by whatsapp_number in auth metadata
-    // Supabase admin can list users — find the one with matching phone
-    const { data: { users }, error } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-
-    if (error || !users) return "";
-
-    const user = users.find((u) => {
-      const meta = u.user_metadata || {};
-      const storedPhone = meta.whatsapp_number || "";
-      // Normalize: remove spaces, compare last 10 digits
-      const normalize = (p: string) => p.replace(/[\s\-\+]/g, "").slice(-10);
-      return normalize(storedPhone) === normalize(phoneNumber);
-    });
-
-    if (!user) return "\nNo linked account found for this number.";
-
-    const meta = user.user_metadata || {};
-    const branch = meta.branch || "ALL";
-    const year = meta.year || "ALL";
-    const name = meta.full_name || meta.name || "Student";
-
-    // Fetch announcements for this user's branch/year
-    const { data: announcements } = await supabase
-      .from("announcements")
-      .select("title, summary, category, urgency, created_at, target_branch, target_year")
-      .order("created_at", { ascending: false })
-      .limit(15);
-
-    const filtered = (announcements || []).filter((ann: any) => {
-      const branchMatch = ann.target_branch === "ALL" || ann.target_branch === branch;
-      const yearMatch = ann.target_year === "ALL" || ann.target_year === year;
-      return branchMatch && yearMatch;
-    });
-
     const today = new Date().toISOString().split("T")[0];
     const tmrw = new Date();
     tmrw.setDate(tmrw.getDate() + 1);
     const tomorrow = tmrw.toISOString().split("T")[0];
 
-    const todayAnn = filtered.filter((a: any) => a.created_at?.split("T")[0] === today || a.created_at?.split("T")[0] === tomorrow);
-    const olderAnn = filtered.filter((a: any) => a.created_at?.split("T")[0] !== today && a.created_at?.split("T")[0] !== tomorrow);
+    // ─── 1. Look up user by phone ──────────────────────────
+    const { data: { users }, error } = await supabase.auth.admin.listUsers({ perPage: 1000 });
 
+    let name = "Student";
+    let branch = "ALL";
+    let year = "ALL";
+    let userFound = false;
+
+    if (!error && users) {
+      const user = users.find((u) => {
+        const meta = u.user_metadata || {};
+        const storedPhone = meta.whatsapp_number || "";
+        const normalize = (p: string) => p.replace(/[\s\-\+]/g, "").slice(-10);
+        return normalize(storedPhone) === normalize(phoneNumber);
+      });
+
+      if (user) {
+        const meta = user.user_metadata || {};
+        name = meta.full_name || meta.name || "Student";
+        branch = meta.branch || "ALL";
+        year = meta.year || "ALL";
+        userFound = true;
+      }
+    }
+
+    if (!userFound) return "\nNo linked account found for this number.";
+
+    // ─── 2. Seed notices (from lib/data.ts) ───────────────
+    const seedContext = seedNotices
+      .filter((n) => n.date === today || n.date === tomorrow)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .map((n) => `- [${n.category}] ${n.title}: ${n.summary} (${n.date} ${n.time})`)
+      .join("\n");
+
+    // ─── 3. Supabase announcements filtered by branch/year ─
+    const { data: announcements } = await supabase
+      .from("announcements")
+      .select("title, summary, category, urgency, created_at, target_branch, target_year")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    const filteredAnn = (announcements || []).filter((ann: any) => {
+      const branchMatch = ann.target_branch === "ALL" || ann.target_branch === branch;
+      const yearMatch = ann.target_year === "ALL" || ann.target_year === year;
+      return branchMatch && yearMatch;
+    });
+
+    const todayAnn = filteredAnn
+      .filter((a: any) => a.created_at?.split("T")[0] === today || a.created_at?.split("T")[0] === tomorrow)
+      .map((a: any) => `- [${a.category}] ${a.title}: ${a.summary}`);
+
+    const olderAnn = filteredAnn
+      .filter((a: any) => a.created_at?.split("T")[0] !== today && a.created_at?.split("T")[0] !== tomorrow)
+      .slice(0, 5)
+      .map((a: any) => `- [${a.category}] ${a.title} (${a.created_at?.split("T")[0]})`);
+
+    // ─── 4. Build full context ─────────────────────────────
     let context = `\nUSER: ${name} | ${branch} Year ${year}`;
     context += `\nTODAY: ${today}`;
 
+    if (seedContext) {
+      context += `\n\nCAMPUS SCHEDULE (Today & Tomorrow):\n${seedContext}`;
+    }
+
     if (todayAnn.length > 0) {
-      context += `\n\nTODAY'S NOTICES:\n${todayAnn.map((a: any) => `- [${a.category}] ${a.title}: ${a.summary}`).join("\n")}`;
+      context += `\n\nADMIN ANNOUNCEMENTS (Today & Tomorrow):\n${todayAnn.join("\n")}`;
     }
 
     if (olderAnn.length > 0) {
-      context += `\n\nRECENT NOTICES:\n${olderAnn.slice(0, 5).map((a: any) => `- [${a.category}] ${a.title} (${a.created_at?.split("T")[0]})`).join("\n")}`;
+      context += `\n\nRECENT ANNOUNCEMENTS:\n${olderAnn.join("\n")}`;
     }
 
     return context;
