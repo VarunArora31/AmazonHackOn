@@ -16,6 +16,12 @@ export const metadata: Metadata = {
   title: "CampusFlow — AI Campus Assistant",
   description:
     "Unified AI-powered campus assistant that cuts through the noise of student life.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
