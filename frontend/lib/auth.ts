@@ -10,6 +10,7 @@ const ADMIN_EMAILS: string[] = [
   "admin@campusflow.com",
   "varunaroransr@gmail.com",
   "imiitian.46@gmail.com",
+  "sidaqpreets007@gmail.com",
 ];
 
 export function isAdminEmail(email: string): boolean {

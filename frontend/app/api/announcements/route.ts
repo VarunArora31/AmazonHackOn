@@ -15,6 +15,7 @@ const ADMIN_EMAILS = [
   "admin@campusflow.com",
   "varunaroransr@gmail.com",
   "imiitian.46@gmail.com",
+  "sidaqpreets007@gmail.com",
 ];
 
 // ─── GET: Fetch announcements ───────────────────────────────────
