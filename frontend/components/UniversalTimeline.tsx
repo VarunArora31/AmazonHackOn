@@ -291,56 +291,36 @@ export function UniversalTimeline({ events, title, emptyMessage = "No notices fo
   const { open: openSearch } = useCommandPalette();
   const { isChatOpen } = useChat();
 
-  const [archivedIds, setArchivedIds] = useState<Set<string>>(() => {
-    // Load per-user archived IDs from localStorage
-    if (typeof window === "undefined") return new Set<string>();
-    try {
-      const stored = localStorage.getItem("archived_notices_user");
-      return stored ? new Set(JSON.parse(stored)) : new Set<string>();
-    } catch { return new Set<string>(); }
-  });
+  const [userId, setUserId] = useState<string>("");
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
+  const [clearedIds, setClearedIds] = useState<Set<string>>(new Set());
 
-  // Persist archive state per user
-  const saveArchive = (ids: Set<string>) => {
-    try {
-      localStorage.setItem("archived_notices_user", JSON.stringify([...ids]));
-    } catch {}
-  };
-
-  // Load correct user key on mount
+  // Load userId and per-user archive/cleared state on mount
   useEffect(() => {
-    async function loadUserArchive() {
+    async function loadState() {
       try {
         const { getCurrentUser } = await import("@/lib/auth");
         const user = await getCurrentUser();
-        if (user) {
-          const key = `archived_notices_${user.id}`;
-          const stored = localStorage.getItem(key);
-          if (stored) {
-            setArchivedIds(new Set(JSON.parse(stored)));
-          }
-          // Update the save function to use user-specific key
-          localStorage.setItem("_archive_key", key);
-        }
+        const uid = user?.id || "guest";
+        setUserId(uid);
+
+        const archiveKey = `archive_${uid}`;
+        const clearKey = `archive_cleared_${uid}`;
+
+        const storedArchive = localStorage.getItem(archiveKey);
+        const storedCleared = localStorage.getItem(clearKey);
+
+        if (storedArchive) setArchivedIds(new Set(JSON.parse(storedArchive)));
+        if (storedCleared) setClearedIds(new Set(JSON.parse(storedCleared)));
       } catch {}
     }
-    loadUserArchive();
+    loadState();
   }, []);
 
   // ─── URL-driven date state ────────────────────────────────
   const targetDate = searchParams.get("date");
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const isTimeTravel = targetDate !== null && targetDate !== todayStr;
-
-  // ─── Filter + sort ────────────────────────────────────────
-  const [clearedIds, setClearedIds] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set<string>();
-    try {
-      const key = localStorage.getItem("_archive_key");
-      const stored = localStorage.getItem((key || "archived_notices_user") + "_cleared");
-      return stored ? new Set(JSON.parse(stored)) : new Set<string>();
-    } catch { return new Set<string>(); }
-  });
 
   const filteredByDate = useMemo(() => {
     if (targetDate) return events.filter((e) => e.date === targetDate);
@@ -361,30 +341,30 @@ export function UniversalTimeline({ events, title, emptyMessage = "No notices fo
   const archiveNotice = useCallback((id: string) => {
     setArchivedIds((prev) => {
       const next = new Set([...prev, id]);
-      // Save to per-user localStorage
-      const key = localStorage.getItem("_archive_key") || "archived_notices_user";
+      const key = `archive_${userId || "guest"}`;
       localStorage.setItem(key, JSON.stringify([...next]));
       return next;
     });
-  }, []);
+  }, [userId]);
 
   const restoreNotice = useCallback((id: string) => {
     setArchivedIds((prev) => {
       const next = new Set(prev);
       next.delete(id);
-      const key = localStorage.getItem("_archive_key") || "archived_notices_user";
+      const key = `archive_${userId || "guest"}`;
       localStorage.setItem(key, JSON.stringify([...next]));
       return next;
     });
-  }, []);
+  }, [userId]);
 
   const clearArchive = useCallback(() => {
-    // Mark all currently archived items as permanently cleared
     const newCleared = new Set([...clearedIds, ...archivedIds]);
     setClearedIds(newCleared);
-    const key = localStorage.getItem("_archive_key") || "archived_notices_user";
-    localStorage.setItem(key + "_cleared", JSON.stringify([...newCleared]));
-  }, [archivedIds, clearedIds]);
+    setArchivedIds(new Set());
+    const uid = userId || "guest";
+    localStorage.setItem(`archive_cleared_${uid}`, JSON.stringify([...newCleared]));
+    localStorage.setItem(`archive_${uid}`, JSON.stringify([]));
+  }, [archivedIds, clearedIds, userId]);
 
   const jumpToToday = () => {
     router.push(pathname, { scroll: false });

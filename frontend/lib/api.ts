@@ -2,14 +2,11 @@
  * API client for CampusFlow
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
 /**
- * Parse raw text into a structured notice via the backend AI.
- * Uses the Express backend (port 5000).
+ * Parse raw text into a structured notice via the Next.js AI route.
  */
 export async function parseNotice(rawText: string) {
-  const res = await fetch(`${API_BASE}/parse`, {
+  const res = await fetch("/api/parse", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ rawText }),

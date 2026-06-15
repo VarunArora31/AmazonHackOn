@@ -1,10 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
 
 export interface Notification {
   id: string;
-  sourceId?: string; // Supabase announcement ID (stable, for read tracking)
+  sourceId?: string; // Supabase announcement ID — stable across sessions
   title: string;
   message: string;
   category: string;
@@ -17,126 +17,150 @@ export interface Notification {
 interface NotificationsContextType {
   notifications: Notification[];
   unreadCount: number;
+  isReady: boolean; // true once userId is loaded and flags are initialized
   addNotification: (n: any) => void;
+  markOneRead: (sourceId: string) => void;
   markAllRead: () => void;
+  clearOne: (sourceId: string) => void;
   clearAll: () => void;
 }
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
-// ─── Per-user storage helpers ───────────────────────────────────
+// ─── Per-user localStorage helpers ─────────────────────────────
 
-function getUserKey(suffix: string): string {
-  if (typeof window === "undefined") return suffix;
-  return localStorage.getItem("_notif_user_key_prefix") || suffix;
+function storageGet(key: string): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try { return new Set(JSON.parse(localStorage.getItem(key) || "[]")); }
+  catch { return new Set(); }
 }
 
-function getReadIds(): string[] {
-  try {
-    const key = getUserKey("read_announcements");
-    return JSON.parse(localStorage.getItem(key) || "[]");
-  } catch { return []; }
+function storageSet(key: string, ids: Set<string>) {
+  if (typeof window === "undefined") return;
+  try { localStorage.setItem(key, JSON.stringify([...ids])); } catch {}
 }
 
-function getClearedIds(): string[] {
-  try {
-    const key = getUserKey("cleared_announcements");
-    return JSON.parse(localStorage.getItem(key) || "[]");
-  } catch { return []; }
-}
-
-function saveReadIds(ids: string[]) {
-  try {
-    const key = getUserKey("read_announcements");
-    localStorage.setItem(key, JSON.stringify(ids));
-  } catch {}
-}
-
-function saveClearedIds(ids: string[]) {
-  try {
-    const key = getUserKey("cleared_announcements");
-    localStorage.setItem(key, JSON.stringify(ids));
-  } catch {}
+function keys(uid: string) {
+  return {
+    read: `notif_read_${uid}`,
+    cleared: `notif_cleared_${uid}`,
+  };
 }
 
 // ─── Provider ───────────────────────────────────────────────────
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const userKeySet = useRef(false);
+  const [isReady, setIsReady] = useState(false);
+  const uidRef = useRef<string>("");
 
-  // Set up per-user key prefix on mount
+  // On mount: load user ID, then mark context as ready
   useEffect(() => {
-    async function initUserKey() {
+    (async () => {
       try {
         const { getCurrentUser } = await import("@/lib/auth");
         const user = await getCurrentUser();
-        if (user) {
-          localStorage.setItem("_notif_user_key_prefix", `read_announcements_${user.id}`);
-          localStorage.setItem("_notif_cleared_key", `cleared_announcements_${user.id}`);
-        }
+        if (user?.id) uidRef.current = user.id;
       } catch {}
-      userKeySet.current = true;
-    }
-    initUserKey();
+      setIsReady(true);
+    })();
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const addNotification = (n: Omit<Notification, "id" | "read"> & { _preRead?: boolean }) => {
-    const { _preRead, timestamp: providedTimestamp, ...rest } = n as any;
+  // Called by AnnouncementLoader — only after isReady
+  const addNotification = useCallback((n: any) => {
+    if (!isReady) return; // Don't accept notifications before userId is loaded
+    const uid = uidRef.current;
+    const { timestamp: ts, ...rest } = n as any;
+    const sourceId: string | undefined = rest.sourceId;
 
-    // Skip if this notification was previously cleared by this user
-    const clearedIds = getClearedIds();
-    if (rest.sourceId && clearedIds.includes(rest.sourceId)) return;
+    // Skip if cleared
+    if (uid && sourceId) {
+      const { cleared } = keys(uid);
+      if (storageGet(cleared).has(sourceId)) return;
+    }
 
     setNotifications((prev) => {
-      if (rest.sourceId && prev.some((p) => p.sourceId === rest.sourceId)) return prev;
+      // Deduplicate
+      if (sourceId && prev.some((p) => p.sourceId === sourceId)) return prev;
 
-      // Check if previously read
-      const readIds = getReadIds();
-      const isRead = _preRead || (rest.sourceId && readIds.includes(rest.sourceId));
+      // Check read state from localStorage
+      let isRead = false;
+      if (uid && sourceId) {
+        const { read } = keys(uid);
+        isRead = storageGet(read).has(sourceId);
+      }
 
-      const updated = [
-        {
-          ...rest,
-          id: `notif-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          timestamp: providedTimestamp || new Date().toISOString(),
-          read: isRead || false,
-        },
-        ...prev,
-      ];
-      return updated.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const newNotif: Notification = {
+        ...rest,
+        id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        timestamp: ts || new Date().toISOString(),
+        read: isRead,
+      };
+
+      return [newNotif, ...prev].sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
     });
-  };
+  }, [isReady]);
 
-  const markAllRead = () => {
-    // Persist read state
-    const sourceIds = notifications.filter(n => n.sourceId).map(n => n.sourceId!);
-    const existing = getReadIds();
-    const merged = [...new Set([...existing, ...sourceIds])];
-    saveReadIds(merged);
+  const markOneRead = useCallback((sourceId: string) => {
+    const uid = uidRef.current;
+    if (uid) {
+      const { read } = keys(uid);
+      const ids = storageGet(read);
+      ids.add(sourceId);
+      storageSet(read, ids);
+    }
+    setNotifications((prev) =>
+      prev.map((n) => n.sourceId === sourceId ? { ...n, read: true } : n)
+    );
+  }, []);
 
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
+  const markAllRead = useCallback(() => {
+    const uid = uidRef.current;
+    setNotifications((prev) => {
+      if (uid) {
+        const { read } = keys(uid);
+        const ids = storageGet(read);
+        prev.forEach((n) => { if (n.sourceId) ids.add(n.sourceId); });
+        storageSet(read, ids);
+      }
+      return prev.map((n) => ({ ...n, read: true }));
+    });
+  }, []);
 
-  const clearAll = () => {
-    // Persist cleared state — these won't come back on refresh
-    const sourceIds = notifications.filter(n => n.sourceId).map(n => n.sourceId!);
-    const existing = getClearedIds();
-    const merged = [...new Set([...existing, ...sourceIds])];
-    saveClearedIds(merged);
+  const clearOne = useCallback((sourceId: string) => {
+    const uid = uidRef.current;
+    if (uid) {
+      const { cleared, read } = keys(uid);
+      const c = storageGet(cleared); c.add(sourceId); storageSet(cleared, c);
+      const r = storageGet(read); r.add(sourceId); storageSet(read, r);
+    }
+    setNotifications((prev) => prev.filter((n) => n.sourceId !== sourceId));
+  }, []);
 
-    // Also mark them as read
-    const readExisting = getReadIds();
-    const readMerged = [...new Set([...readExisting, ...sourceIds])];
-    saveReadIds(readMerged);
-
-    setNotifications([]);
-  };
+  const clearAll = useCallback(() => {
+    const uid = uidRef.current;
+    setNotifications((prev) => {
+      if (uid) {
+        const { cleared, read } = keys(uid);
+        const c = storageGet(cleared);
+        const r = storageGet(read);
+        prev.forEach((n) => { if (n.sourceId) { c.add(n.sourceId); r.add(n.sourceId); } });
+        storageSet(cleared, c);
+        storageSet(read, r);
+      }
+      return [];
+    });
+  }, []);
 
   return (
-    <NotificationsContext.Provider value={{ notifications, unreadCount, addNotification, markAllRead, clearAll }}>
+    <NotificationsContext.Provider value={{
+      notifications, unreadCount, isReady,
+      addNotification, markOneRead, markAllRead, clearOne, clearAll,
+    }}>
       {children}
     </NotificationsContext.Provider>
   );
