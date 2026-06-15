@@ -58,9 +58,197 @@ export const roleToCategoryMap: Record<AdminRole, NoticeCategory> = {
 };
 
 // ─── Mock Official Notices (Global Database) ────────────────────
-// Empty by default — all real notices come from Supabase via AnnouncementLoader
+// Seed notices use relative dates so they always appear current when evaluators view the app.
+// These are merged with real Supabase announcements via AnnouncementLoader.
 
-export const notices: Notice[] = [];
+function getRelativeDate(daysFromToday: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromToday);
+  return d.toISOString().split("T")[0];
+}
+
+export const notices: Notice[] = [
+  // ─── TODAY ──────────────────────────────────────────────────
+  {
+    id: "seed-1",
+    title: "Mess Menu Changed — Dinner Updated",
+    summary: "Tonight's dinner changed from Paneer Butter Masala to Chole Bhature due to supply issues. Breakfast unchanged.",
+    category: "Hostel Admin",
+    urgency: "high",
+    date: getRelativeDate(0),
+    time: "14:30",
+    authorRole: "ADMIN_HOSTEL",
+    source: "official",
+  },
+  {
+    id: "seed-2",
+    title: "Microsoft SDE Intern — Registration Link Live",
+    summary: "Microsoft on-campus drive for SDE Intern role. Register on placement portal by end of week. CGPA cutoff: 7.5+.",
+    category: "Placement",
+    urgency: "critical",
+    date: getRelativeDate(0),
+    time: "10:00",
+    authorRole: "ADMIN_PLACEMENT",
+    source: "official",
+  },
+  {
+    id: "seed-3",
+    title: "Data Structures Lecture",
+    summary: "Regular DS lecture covering Graphs & Trees in Room 204.",
+    category: "Academics",
+    urgency: "normal",
+    date: getRelativeDate(0),
+    time: "09:00 - 10:30",
+    authorRole: "ADMIN_ACADEMICS",
+    source: "official",
+  },
+  {
+    id: "seed-4",
+    title: "Coding Club — Weekly Contest #14",
+    summary: "This week's competitive programming contest at 8 PM. Platform: Codeforces. Top 3 get swag.",
+    category: "Club Event",
+    urgency: "normal",
+    date: getRelativeDate(0),
+    time: "20:00 - 22:00",
+    authorRole: "CLUB_LEAD",
+    source: "official",
+  },
+  // ─── TOMORROW ───────────────────────────────────────────────
+  {
+    id: "seed-5",
+    title: "End-Sem Exam Schedule Released",
+    summary: "End semester exams begin next week. Data Structures first (9 AM), Operating Systems two days later (2 PM). Full schedule on ERP.",
+    category: "Academics",
+    urgency: "high",
+    date: getRelativeDate(1),
+    time: "09:00",
+    authorRole: "ADMIN_ACADEMICS",
+    source: "official",
+  },
+  {
+    id: "seed-6",
+    title: "DBMS Lab",
+    summary: "Database Management Systems lab session in Lab 3. Bring your ER diagrams.",
+    category: "Academics",
+    urgency: "normal",
+    date: getRelativeDate(1),
+    time: "14:00 - 16:00",
+    authorRole: "ADMIN_ACADEMICS",
+    source: "official",
+  },
+  {
+    id: "seed-7",
+    title: "Placement Workshop — Resume Building",
+    summary: "Resume building and mock interview workshop by T&P Cell in Seminar Hall. Open to all years.",
+    category: "Placement",
+    urgency: "normal",
+    date: getRelativeDate(1),
+    time: "14:30 - 16:30",
+    authorRole: "ADMIN_PLACEMENT",
+    source: "official",
+  },
+  {
+    id: "seed-8",
+    title: "Football Practice",
+    summary: "Regular football practice session at the main ground. All team members mandatory.",
+    category: "Sports",
+    urgency: "low",
+    date: getRelativeDate(1),
+    time: "09:30 - 11:00",
+    authorRole: "SPORTS_ADMIN",
+    source: "official",
+  },
+  // ─── DAY AFTER TOMORROW ─────────────────────────────────────
+  {
+    id: "seed-9",
+    title: "Hostel Curfew Extended for Fest Week",
+    summary: "Hostel curfew extended to 12:30 AM for the upcoming TechFest week. Late entry requires warden approval.",
+    category: "Hostel Admin",
+    urgency: "normal",
+    date: getRelativeDate(2),
+    time: "16:45",
+    authorRole: "ADMIN_HOSTEL",
+    source: "official",
+  },
+  {
+    id: "seed-10",
+    title: "Computer Networks Lecture",
+    summary: "CN lecture on TCP/IP and socket programming in Room 301.",
+    category: "Academics",
+    urgency: "normal",
+    date: getRelativeDate(2),
+    time: "11:00 - 12:30",
+    authorRole: "ADMIN_ACADEMICS",
+    source: "official",
+  },
+  {
+    id: "seed-11",
+    title: "TechFest Rehearsal",
+    summary: "Final rehearsal for TechFest opening ceremony in the main auditorium.",
+    category: "Club Event",
+    urgency: "normal",
+    date: getRelativeDate(2),
+    time: "17:00 - 19:00",
+    authorRole: "CLUB_LEAD",
+    source: "official",
+  },
+  {
+    id: "seed-12",
+    title: "Basketball Tryouts",
+    summary: "Open tryouts for the inter-college basketball team at the indoor court.",
+    category: "Sports",
+    urgency: "low",
+    date: getRelativeDate(2),
+    time: "17:30 - 19:00",
+    authorRole: "SPORTS_ADMIN",
+    source: "official",
+  },
+  // ─── 3 DAYS FROM NOW ────────────────────────────────────────
+  {
+    id: "seed-13",
+    title: "OS Assignment Due",
+    summary: "Operating Systems assignment submission deadline. Submit on ERP portal by 11:59 PM.",
+    category: "Academics",
+    urgency: "high",
+    date: getRelativeDate(3),
+    time: "23:59",
+    authorRole: "ADMIN_ACADEMICS",
+    source: "official",
+  },
+  {
+    id: "seed-14",
+    title: "Inter-Hostel Cricket Finals",
+    summary: "Finals between Hostel 4 and Hostel 7 at the main ground, 4 PM. All are welcome to cheer.",
+    category: "Sports",
+    urgency: "low",
+    date: getRelativeDate(3),
+    time: "16:00 - 18:00",
+    authorRole: "SPORTS_ADMIN",
+    source: "official",
+  },
+  {
+    id: "seed-15",
+    title: "Club Meeting — Monthly Planning",
+    summary: "Monthly planning meeting for all club heads in Conference Room B.",
+    category: "Club Event",
+    urgency: "low",
+    date: getRelativeDate(3),
+    time: "11:30 - 13:00",
+    authorRole: "CLUB_LEAD",
+    source: "official",
+  },
+  // ─── 5 DAYS FROM NOW ────────────────────────────────────────
+  {
+    id: "seed-16",
+    title: "Library Books Return Deadline",
+    summary: "All issued books must be returned before end-sem exams. Fine: ₹5/day after deadline.",
+    category: "General",
+    urgency: "low",
+    date: getRelativeDate(5),
+    time: "09:00",
+    source: "official",
+  },
+];
 
 // ─── Calendar Events ────────────────────────────────────────────
 
