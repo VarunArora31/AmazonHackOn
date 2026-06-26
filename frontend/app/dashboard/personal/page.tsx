@@ -53,7 +53,8 @@ interface TimelineEvent {
   category?: OfficialCategory;
   done?: boolean;
   archived?: boolean;
-  day: "today" | "tomorrow";
+  day: "today" | "tomorrow" | "upcoming";
+  dateStr?: string; // YYYY-MM-DD — set for specific-date personal tasks
 }
 
 // ─── Category Config (Obsidian & Neon) ──────────────────────────
@@ -110,7 +111,7 @@ function mapNoticeCategoryToLocal(cat: string): OfficialCategory {
 }
 
 /** Determine if a date is today, tomorrow, or other */
-function getRelativeDay(dateStr: string): "today" | "tomorrow" {
+function getRelativeDay(dateStr: string): "today" | "tomorrow" | "upcoming" {
   const date = new Date(dateStr + "T00:00:00");
   const today = new Date();
   const tomorrow = new Date(today);
@@ -118,7 +119,8 @@ function getRelativeDay(dateStr: string): "today" | "tomorrow" {
 
   if (date.toDateString() === today.toDateString()) return "today";
   if (date.toDateString() === tomorrow.toDateString()) return "tomorrow";
-  // Default older/future events to "today" for visibility in demo
+  // Future dates get their own upcoming bucket; past dates fall into today for visibility
+  if (date > tomorrow) return "upcoming";
   return "today";
 }
 
@@ -264,9 +266,11 @@ function TimelineNode({
 function ArchiveAccordion({
   events,
   onRestore,
+  onClearAll,
 }: {
   events: TimelineEvent[];
   onRestore: (id: string) => void;
+  onClearAll?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   if (events.length === 0) return null;
@@ -330,9 +334,19 @@ function ArchiveAccordion({
                 ))}
               </AnimatePresence>
             </div>
-            <p className="text-[10px] text-neutral-400 dark:text-neutral-700 mt-3 px-1 italic">
-              Muted notices are never deleted. Restore anytime.
-            </p>
+            <div className="flex items-center justify-between mt-3 px-1">
+              <p className="text-[10px] text-neutral-400 dark:text-neutral-700 italic">
+                Muted notices are never deleted. Restore anytime.
+              </p>
+              {onClearAll && (
+                <button
+                  onClick={onClearAll}
+                  className="text-[10px] text-red-500 hover:text-red-600 dark:hover:text-red-400 font-medium transition-colors"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -355,8 +369,10 @@ export default function PersonalPage() {
   // ─── LOCAL State: personal tasks + archive IDs ────────────
   // Persist personal tasks in localStorage per user
   const [personalTasks, setPersonalTasks] = useState<TimelineEvent[]>([]);
-  // Archive is LOCAL ONLY — never mutates the global database
+  // Archive IDs — persisted to localStorage per user so they survive refresh
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
+  // Cleared IDs — permanently hidden (like "clear all" in other sections)
+  const [clearedIds, setClearedIds] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
 
   // Load saved tasks from localStorage on mount (per-user, with midnight cleanup)
@@ -386,13 +402,25 @@ export default function PersonalPage() {
               return true;
             })
             .map((task) => {
-              // Shift undone "today" tasks that are actually from a past session to still show as "today"
-              // (they persist until done)
+              // Re-evaluate day bucket for tasks that have a specific dateStr
+              // (a task saved as "upcoming" for June 18 becomes "today" when that day arrives)
+              if ((task as any).dateStr) {
+                return { ...task, day: getRelativeDay((task as any).dateStr) };
+              }
+              // Undone tasks without a specific date stay on "today"
               return { ...task, day: task.done ? task.day : "today" as const };
             });
 
           setPersonalTasks(cleaned);
         }
+
+        // Restore archive state from localStorage
+        const archiveKey = `personal_archive_${uid}`;
+        const clearedKey = `personal_archive_cleared_${uid}`;
+        const storedArchive = localStorage.getItem(archiveKey);
+        const storedCleared = localStorage.getItem(clearedKey);
+        if (storedArchive) setArchivedIds(new Set(JSON.parse(storedArchive)));
+        if (storedCleared) setClearedIds(new Set(JSON.parse(storedCleared)));
       } catch {}
     }
     loadTasks();
@@ -437,15 +465,15 @@ export default function PersonalPage() {
   );
 
   // ─── GLOBAL vs LOCAL MUTATION SAFETY ──────────────────────
-  // Filter out locally archived items (never touches global DB)
+  // Filter out locally archived and permanently cleared items
   const activeEvents = useMemo(
-    () => allEvents.filter((e) => !archivedIds.has(e.id)),
-    [allEvents, archivedIds]
+    () => allEvents.filter((e) => !archivedIds.has(e.id) && !clearedIds.has(e.id)),
+    [allEvents, archivedIds, clearedIds]
   );
 
   const archivedEvents = useMemo(
-    () => allEvents.filter((e) => archivedIds.has(e.id)),
-    [allEvents, archivedIds]
+    () => allEvents.filter((e) => archivedIds.has(e.id) && !clearedIds.has(e.id)),
+    [allEvents, archivedIds, clearedIds]
   );
 
   // ─── Derived timeline data ────────────────────────────────
@@ -457,6 +485,20 @@ export default function PersonalPage() {
     () => sortEventsByTime(activeEvents.filter((e) => e.day === "tomorrow")),
     [activeEvents]
   );
+  // Upcoming: specific future dates (beyond tomorrow), grouped by dateStr
+  const upcomingGroups = useMemo(() => {
+    const upcoming = activeEvents.filter((e) => e.day === "upcoming" && e.dateStr);
+    const grouped: Record<string, typeof upcoming> = {};
+    for (const e of upcoming) {
+      const key = e.dateStr!;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(e);
+    }
+    // Sort groups by date ascending, events within each group by time
+    return Object.entries(grouped)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dateStr, events]) => ({ dateStr, events: sortEventsByTime(events) }));
+  }, [activeEvents]);
 
   const todayPersonal = todayEvents.filter((e) => e.type === "personal");
   const completedToday = todayPersonal.filter((e) => e.done).length;
@@ -477,11 +519,14 @@ export default function PersonalPage() {
     ));
   };
 
-  // LOCAL archive — only hides from this student's view, never deletes globally
+  // LOCAL archive — persisted to localStorage so it survives refresh/logout
   const archiveEvent = (id: string) => {
     setArchivedIds((prev) => {
       const next = new Set(prev);
       next.add(id);
+      if (userId) {
+        localStorage.setItem(`personal_archive_${userId}`, JSON.stringify([...next]));
+      }
       return next;
     });
   };
@@ -491,7 +536,27 @@ export default function PersonalPage() {
     setArchivedIds((prev) => {
       const next = new Set(prev);
       next.delete(id);
+      if (userId) {
+        localStorage.setItem(`personal_archive_${userId}`, JSON.stringify([...next]));
+      }
       return next;
+    });
+  };
+
+  // Clear all archived items permanently (same as other sections)
+  const clearAllArchived = () => {
+    setArchivedIds((prev) => {
+      setClearedIds((prevCleared) => {
+        const next = new Set([...prevCleared, ...prev]);
+        if (userId) {
+          localStorage.setItem(`personal_archive_cleared_${userId}`, JSON.stringify([...next]));
+        }
+        return next;
+      });
+      if (userId) {
+        localStorage.setItem(`personal_archive_${userId}`, JSON.stringify([]));
+      }
+      return new Set();
     });
   };
 
@@ -501,28 +566,144 @@ export default function PersonalPage() {
 
   const addTask = () => {
     if (!newTask.trim()) return;
+
+    const input = newTask.trim();
+
+    // ─── Month name map (longest first to avoid "jun" matching before "june") ──
+    const MONTHS: Record<string, number> = {
+      january: 1, february: 2, march: 3, april: 4, may: 5,
+      june: 6, july: 7, august: 8, september: 9, october: 10,
+      november: 11, december: 12,
+      jan: 1, feb: 2, mar: 3, apr: 4,
+      jun: 6, jul: 7, aug: 8,
+      sep: 9, sept: 9, oct: 10, nov: 11, dec: 12,
+    };
+
+    // Build alternation with longest names first so "june" wins over "jun"
+    const monthAlt = [
+      "january","february","march","april","may","june","july",
+      "august","september","october","november","december",
+      "jan","feb","mar","apr","jun","jul","aug","sept","sep","oct","nov","dec",
+    ].join("|");
+
+    // ─── Parse specific date ──────────────────────────────
+    // Supports: "17June", "17 June", "17th June", "17th of June",
+    //           "June 17", "June17", "June 17th"
+    //           Optionally preceded by "on "
+    let parsedDate: string | null = null;
+    let fullDatePhrase = ""; // full text consumed (including optional "on")
+
+    // Pattern 1: [on ][dd][st/nd/rd/th][ of] MONTH[ YYYY]
+    const p1 = new RegExp(
+      `(?:on\\s+)?(\\d{1,2})(?:st|nd|rd|th)?(?:\\s+of)?\\s*(${monthAlt})(?:\\s+(\\d{4}))?`,
+      "i"
+    );
+    // Pattern 2: [on ]MONTH[ dd][st/nd/rd/th][ YYYY]
+    const p2 = new RegExp(
+      `(?:on\\s+)?(${monthAlt})\\s*(\\d{1,2})(?:st|nd|rd|th)?(?:\\s+(\\d{4}))?`,
+      "i"
+    );
+
+    const m1 = input.match(p1);
+    const m2 = input.match(p2);
+
+    // Prefer p1 (day-first) unless p2 matches earlier in the string
+    const useM1 = m1 && (!m2 || (m1.index ?? 999) <= (m2.index ?? 999));
+
+    if (useM1 && m1) {
+      const d = parseInt(m1[1]);
+      const month = MONTHS[m1[2].toLowerCase()];
+      const year = m1[3] ? parseInt(m1[3]) : new Date().getFullYear();
+      if (d >= 1 && d <= 31 && month) {
+        parsedDate = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        fullDatePhrase = m1[0];
+      }
+    } else if (m2) {
+      const month = MONTHS[m2[1].toLowerCase()];
+      const d = parseInt(m2[2]);
+      const year = m2[3] ? parseInt(m2[3]) : new Date().getFullYear();
+      if (d >= 1 && d <= 31 && month) {
+        parsedDate = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        fullDatePhrase = m2[0];
+      }
+    }
+
+    // ─── Determine day bucket ─────────────────────────────
+    let dayBucket: "today" | "tomorrow" | "upcoming" = "today";
+    if (parsedDate) {
+      dayBucket = getRelativeDay(parsedDate);
+    } else if (/\btomorrow\b/i.test(input)) {
+      dayBucket = "tomorrow";
+      const tmrw = new Date();
+      tmrw.setDate(tmrw.getDate() + 1);
+      parsedDate = tmrw.toISOString().split("T")[0];
+    } else {
+      parsedDate = new Date().toISOString().split("T")[0];
+    }
+
+    // ─── Remove date phrase from string before parsing time ──
+    // This prevents "17" in "17June" from being mistaken for an hour
+    const withoutDate = fullDatePhrase
+      ? input.replace(fullDatePhrase, "§")   // replace with a safe placeholder
+      : input.replace(/\btomorrow\b/gi, "§").replace(/\btoday\b/gi, "§");
+
+    // ─── Parse time ───────────────────────────────────────
     let time = "12:00";
     let timeLabel = "12:00 PM";
-    const match = newTask.match(/(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|AM|PM)?/);
-    if (match) {
-      let h = parseInt(match[1]);
-      const m = match[2] || "00";
-      const p = match[3]?.toLowerCase();
-      if (p === "pm" && h < 12) h += 12;
-      if (p === "am" && h === 12) h = 0;
-      time = `${h.toString().padStart(2, "0")}:${m}`;
-      const dh = h > 12 ? h - 12 : h === 0 ? 12 : h;
-      timeLabel = `${dh}:${m} ${h >= 12 ? "PM" : "AM"}`;
+
+    // Match "at 3pm", "at 14:30", "3pm", "3:30pm", "3:30 PM"
+    // We use a simple ordered approach: HH:MM first, then H am/pm
+    const timeRegex = /(?:at\s+)?(\d{1,2}):(\d{2})\s*(am|pm)?|(?:at\s+)?(\d{1,2})\s*(am|pm)/i;
+    const tm = withoutDate.match(timeRegex);
+
+    if (tm) {
+      if (tm[1] !== undefined) {
+        // HH:MM[:am/pm] format
+        let h = parseInt(tm[1]);
+        const mins = tm[2];
+        const p = tm[3]?.toLowerCase();
+        if (p === "pm" && h < 12) h += 12;
+        else if (p === "am" && h === 12) h = 0;
+        time = `${h.toString().padStart(2, "0")}:${mins}`;
+        const dh = h > 12 ? h - 12 : h === 0 ? 12 : h;
+        timeLabel = `${dh}:${mins} ${h >= 12 ? "PM" : "AM"}`;
+      } else if (tm[4] !== undefined) {
+        // H am/pm format — explicit meridiem required
+        let h = parseInt(tm[4]);
+        const p = tm[5]?.toLowerCase();
+        if (p === "pm" && h < 12) h += 12;
+        else if (p === "am" && h === 12) h = 0;
+        time = `${h.toString().padStart(2, "0")}:00`;
+        const dh = h > 12 ? h - 12 : h === 0 ? 12 : h;
+        timeLabel = `${dh}:00 ${h >= 12 ? "PM" : "AM"}`;
+      }
     }
+
+    // ─── Build clean title ────────────────────────────────
+    const titleCleaned = input
+      // Remove full date phrase (including leading "on")
+      .replace(fullDatePhrase, "")
+      // Remove tomorrow/today keywords
+      .replace(/\btomorrow\b/gi, "")
+      .replace(/\btoday\b/gi, "")
+      // Remove time expressions: "at 3pm", "at 14:30", "3:30 PM", "3pm"
+      .replace(/\bat\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b/gi, "")
+      .replace(/\b\d{1,2}:\d{2}\s*(?:am|pm)?\b/gi, "")
+      .replace(/\b\d{1,2}\s*(?:am|pm)\b/gi, "")
+      // Clean leftover punctuation and whitespace
+      .replace(/\s{2,}/g, " ")
+      .trim();
+
     setPersonalTasks((prev) => [
       ...prev,
       {
         id: `p-${Date.now()}`,
-        title: newTask.replace(/(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm|AM|PM)?/, "").trim() || newTask,
+        title: titleCleaned || input,
         time,
         timeLabel,
-        type: "personal",
-        day: "today",
+        type: "personal" as const,
+        day: dayBucket,
+        dateStr: parsedDate ?? undefined,
         done: false,
       },
     ]);
@@ -533,10 +714,10 @@ export default function PersonalPage() {
   const { open: openSearch } = useCommandPalette();
   const { isChatOpen } = useChat();
 
-  // Combine today + tomorrow into a flat array for vim indexing
+  // Combine today + tomorrow + upcoming into a flat array for vim indexing
   const allVisibleEvents = useMemo(
-    () => [...todayEvents, ...tomorrowEvents],
-    [todayEvents, tomorrowEvents]
+    () => [...todayEvents, ...tomorrowEvents, ...upcomingGroups.flatMap((g) => g.events)],
+    [todayEvents, tomorrowEvents, upcomingGroups]
   );
 
   const onVimArchive = useCallback(
@@ -758,8 +939,54 @@ export default function PersonalPage() {
           </div>
         </motion.section>
 
+        {/* ─── Upcoming (specific future dates beyond tomorrow) ── */}
+        {upcomingGroups.map((group, gi) => {
+          const groupStart =
+            todayEvents.length +
+            tomorrowEvents.length +
+            upcomingGroups.slice(0, gi).reduce((acc, g) => acc + g.events.length, 0);
+          const groupDate = new Date(group.dateStr + "T00:00:00");
+          const groupLabel = format(groupDate, "EEEE, MMMM d");
+          return (
+            <motion.section
+              key={group.dateStr}
+              layout
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.18 }}
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <div className="size-2 rounded-full bg-neutral-200 dark:bg-zinc-800" />
+                <h3 className="text-xs font-semibold text-neutral-400 dark:text-neutral-600 uppercase tracking-wider">
+                  {groupLabel}
+                </h3>
+                <div className="flex-1 h-px bg-neutral-200/60 dark:bg-[#1a1a1a]/60" />
+                <span className="text-[10px] text-neutral-400 dark:text-neutral-600">{group.events.length}</span>
+              </div>
+              <div className="timeline-line space-y-2">
+                <AnimatePresence mode="popLayout">
+                  {group.events.map((e, i) => {
+                    const globalIdx = groupStart + i;
+                    return (
+                      <TimelineNode
+                        key={e.id}
+                        event={e}
+                        onToggleDone={toggleDone}
+                        onArchive={archiveEvent}
+                        onDelete={e.type === "personal" ? deleteTask : undefined}
+                        isFocused={isFocusActive && focusedIndex === globalIdx}
+                        timelineIndex={globalIdx}
+                      />
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            </motion.section>
+          );
+        })}
+
         {/* ─── Archive Drawer ────────────────────────────────── */}
-        <ArchiveAccordion events={archivedEvents} onRestore={restoreEvent} />
+        <ArchiveAccordion events={archivedEvents} onRestore={restoreEvent} onClearAll={clearAllArchived} />
       </div>
     </LayoutGroup>
   );

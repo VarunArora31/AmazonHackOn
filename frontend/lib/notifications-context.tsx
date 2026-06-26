@@ -60,8 +60,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       try {
         const { getCurrentUser } = await import("@/lib/auth");
         const user = await getCurrentUser();
-        if (user?.id) uidRef.current = user.id;
-      } catch {}
+        // Use a guaranteed non-empty fallback so per-user keys never collapse to "notif_read_"
+        uidRef.current = user?.id || "anonymous";
+      } catch {
+        uidRef.current = "anonymous";
+      }
       setIsReady(true);
     })();
   }, []);
@@ -76,7 +79,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     const sourceId: string | undefined = rest.sourceId;
 
     // Skip if cleared
-    if (uid && sourceId) {
+    if (sourceId) {
       const { cleared } = keys(uid);
       if (storageGet(cleared).has(sourceId)) return;
     }
@@ -87,7 +90,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
       // Check read state from localStorage
       let isRead = false;
-      if (uid && sourceId) {
+      if (sourceId) {
         const { read } = keys(uid);
         isRead = storageGet(read).has(sourceId);
       }
@@ -107,12 +110,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const markOneRead = useCallback((sourceId: string) => {
     const uid = uidRef.current;
-    if (uid) {
-      const { read } = keys(uid);
-      const ids = storageGet(read);
-      ids.add(sourceId);
-      storageSet(read, ids);
-    }
+    const { read } = keys(uid);
+    const ids = storageGet(read);
+    ids.add(sourceId);
+    storageSet(read, ids);
     setNotifications((prev) =>
       prev.map((n) => n.sourceId === sourceId ? { ...n, read: true } : n)
     );
@@ -121,37 +122,31 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const markAllRead = useCallback(() => {
     const uid = uidRef.current;
     setNotifications((prev) => {
-      if (uid) {
-        const { read } = keys(uid);
-        const ids = storageGet(read);
-        prev.forEach((n) => { if (n.sourceId) ids.add(n.sourceId); });
-        storageSet(read, ids);
-      }
+      const { read } = keys(uid);
+      const ids = storageGet(read);
+      prev.forEach((n) => { if (n.sourceId) ids.add(n.sourceId); });
+      storageSet(read, ids);
       return prev.map((n) => ({ ...n, read: true }));
     });
   }, []);
 
   const clearOne = useCallback((sourceId: string) => {
     const uid = uidRef.current;
-    if (uid) {
-      const { cleared, read } = keys(uid);
-      const c = storageGet(cleared); c.add(sourceId); storageSet(cleared, c);
-      const r = storageGet(read); r.add(sourceId); storageSet(read, r);
-    }
+    const { cleared, read } = keys(uid);
+    const c = storageGet(cleared); c.add(sourceId); storageSet(cleared, c);
+    const r = storageGet(read); r.add(sourceId); storageSet(read, r);
     setNotifications((prev) => prev.filter((n) => n.sourceId !== sourceId));
   }, []);
 
   const clearAll = useCallback(() => {
     const uid = uidRef.current;
     setNotifications((prev) => {
-      if (uid) {
-        const { cleared, read } = keys(uid);
-        const c = storageGet(cleared);
-        const r = storageGet(read);
-        prev.forEach((n) => { if (n.sourceId) { c.add(n.sourceId); r.add(n.sourceId); } });
-        storageSet(cleared, c);
-        storageSet(read, r);
-      }
+      const { cleared, read } = keys(uid);
+      const c = storageGet(cleared);
+      const r = storageGet(read);
+      prev.forEach((n) => { if (n.sourceId) { c.add(n.sourceId); r.add(n.sourceId); } });
+      storageSet(cleared, c);
+      storageSet(read, r);
       return [];
     });
   }, []);
